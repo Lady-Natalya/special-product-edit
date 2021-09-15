@@ -392,7 +392,7 @@ function special_product_menu_link_callback() {
 							  		$variation_html .= '<div id="'.$variation.'-managestock-dropdown" class="dropdiv-content man-stock center">';
 							  		$variation_html .= '<span class="dropdiv-content-option">yes</span><br/><span class="dropdiv-content-option">no</span>';
 							  		$variation_html .= '</div>';
-							  		$variation_html .= '</div>';
+							  		$variation_html .= '</div>';https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&ved=2ahUKEwiu7d2rlffyAhWNQjABHaFKCRMQFnoECAkQAQ&url=https%3A%2F%2Fstackoverflow.com%2Fquestions%2F29374743%2Fusing-ternary-operator-without-the-else-statement-php&usg=AOvVaw3mBYlG9yWXlDdW6-bt0GYD
 									$variation_html .= '<div id="'. $variation . '-stock" class="stock stock-val '.(($stock[0] == 1) ? 'integer-val' : '').' center bold'.set_bg($stock).'" contentEditable="true">'.(($stock[0] == 1) ? $stock[1] : $stock[2]).'</div>';
 									echo $variation_html;
 									?>
@@ -402,13 +402,14 @@ function special_product_menu_link_callback() {
 							  	// If there's a linked external, display it
 							  	display_external_product_rows($externals, $wpdb);
 								
+								// PHP 7.0+ is required to use ?? operator.  PHP 5.6 has been unsupported for well over 2 years as of this code being written.  See: https://www.php.net/supported-versions.php
 								$initial_value_array = array(
-									"sku" => $sku,
-									"manageStock" => $stock[0],
-									"origStock" => $stock[1],
-									"origStockStatus" => $stock[2],
-									"regularPrice" => $reg_price,
-									"salePrice" => ($sale_price ? $sale_price : '')
+									"sku" => ($sku ?? ''),
+									"manageStock" => ($stock[0] ?? 'no'), // Could also be set to 'yes' as default.  Could add as optional setting for the user.
+									"origStock" => ($stock[1] ?? 0),
+									"origStockStatus" => ($stock[2] ?? 'outofstock'),
+									"regularPrice" => ($reg_price ?? ''),
+									"salePrice" => ($sale_price ?? ''),
 								);
 							  
 								if (!empty($initial_value_array)) {
@@ -434,12 +435,11 @@ function special_product_menu_link_callback() {
 						$visvar = evaluate_visibility_vars($meta[2]);
 						
 						$initial_value_array = array(
-							//"sku" => $sku,
-							"excludeFromSearch" => $visvar[0],
-							"excludeFromCatalog" => $visvar[1],
-							"externalLink" => $external_meta,
-							"regularPrice" => $prices[0],
-							"salePrice" => ($prices[1] ? $prices[1] : "''")
+							"excludeFromSearch" => ($visvar[0] ?? 0),
+							"excludeFromCatalog" => ($visvar[1] ?? 0),
+							"externalLink" => ($external_meta ?? ''),
+							"regularPrice" => ($prices[0] ?? ''),
+							"salePrice" => ($prices[1] ?? ''),
 						);
 							  
 						if (!empty($initial_value_array)) {
@@ -465,32 +465,20 @@ function special_product_menu_link_callback() {
 						$visvar = evaluate_visibility_vars($meta[2]);;
 						$stock = evaluate_stock($prod_id, $wpdb);
 						
-												?>
-						<script>
-							// Set up inititial value info for this product
-							window.initialValues.productsDisplayed += 1;
-							
-							sku = '<?php echo $sku; ?>';
-							prodId = <?php echo $prod_id; ?>;
-							manageStock = <?php echo $stock[0]; ?>; 
-							origStock = <?php echo $stock[1]; ?>;
-							origStockStatus = '<?php echo $stock[2]; ?>';
-							excludeFromSearch = <?php echo $visvar[0]; ?>;
-							excludeFromCatalog = <?php echo $visvar[1]; ?>;
-							regularPrice = <?php echo $prices[0]; ?>;
-							salePrice = <?php echo ($prices[1] ? $prices[1] : "''"); ?>;
-							window.initialValues[prodId] = {
-								'sku' : sku,
-								'manageStock': manageStock,
-								'stock': origStock,
-								'stockStatus': origStockStatus,
-								'excludeFromSearch': excludeFromSearch,
-								'excludeFromCatalog': excludeFromCatalog,
-								'regularPrice' : regularPrice,
-								'salePrice' : salePrice
-							};
-						</script>
-						<?php
+						$initial_value_array = array(
+							"sku" => $sku,
+							"manageStock" => ($stock[0] ?? 'no'),
+							"origStock" => ($stock[1] ?? 0),
+							"origStockStatus" => ($stock[2] ?? 'outofstock'),
+							"excludeFromSearch" => ($visvar[0] ?? 0),
+							"excludeFromCatalog" => ($visvar[1] ?? 0),
+							"regularPrice" => ($prices[0] ?? ''),
+							"salePrice" => ($prices[1] ?? ''),
+						);
+							  
+						if (!empty($initial_value_array)) {
+							spe_initial_value_setup_script($type, $initial_value_array, $prod_id);
+						}
 						
 						echo '<div class="spe-prod-title">Manage Stock: <div id="'. $prod_id . '-managestock-parentdiv" class="spe-prod-info man-stock spe-prod-selection">',($manage_stock ? 'yes' : 'no');
 						echo '<div id="'. $prod_id .'-managestock-dropdown" class="dropdiv-content man-stock">';
@@ -882,15 +870,15 @@ function generate_product_edit_script() {
 						}
 					} else if (e.target.parentNode.className.includes('vis')) {
 						switch(selectedValue) {
-							case 'Shop and search results':
+							case 'Shop and Search Results':
 								excludeFromSearch = 0;
 								excludeFromCatalog = 0;
 								break;
-							case 'Shop only':
+							case 'Shop Only':
 								excludeFromSearch = 1;
 								excludeFromCatalog = 0;
 								break;
-							case 'Search only':
+							case 'Search Only':
 								excludeFromSearch = 0;
 								excludeFromCatalog = 1;
 								break;
@@ -904,9 +892,7 @@ function generate_product_edit_script() {
 							// Unmodified
 							removeModifiedProductValue(prodId, 'excludeFromSearch');
 							removeModifiedProductValue(prodId, 'excludeFromCatalog');
-							if (checkProdModified(prodId)) {
-								setEditedClass(e.target.parentNode.parentNode, false);
-							}
+							setEditedClass(e.target.parentNode.parentNode, false);
 						} else {
 							// Because of how visibility is calculated by woocommerce we need to send both or neither
 							ensureModifiedProductDefined(prodId);
@@ -962,12 +948,12 @@ function evaluate_visibility_vars($visstr) {
 		case 1:
 			$result[0] = 1;
 			$result[1] = 0;
-			$result[2] = 'Shop only';
+			$result[2] = 'Shop Only';
 			break;
 		case 2:
 			$result[0] = 0;
 			$result[1] = 1;
-			$result[2] = 'Search only';
+			$result[2] = 'Search Only';
 			break;
 		case 3:	
 			$result[0] = 1;
@@ -1009,7 +995,7 @@ function display_external_product_rows($res, $db) {
 		 		$external_html = '<div class="info-label id">External ' . product_link($external) . '</div>';
 		  		$external_html .= '<div id="'.$external.'-visibility" class="'.$visstyle.' vis edit">'.$visvar[2];
 		  		$external_html .= '<div id="'.$external.'-visibility-dropdown" class="dropdiv-content vis center">';
-				$external_html .= '<span class="dropdiv-content-option">Shop and search results</span><br/><span class="dropdiv-content-option">Shop only</span><br/><span class="dropdiv-content-option">Search only</span><br/><span class="dropdiv-content-option">Hidden</span>';
+				$external_html .= '<span class="dropdiv-content-option">Shop and Search Results</span><br/><span class="dropdiv-content-option">Shop Only</span><br/><span class="dropdiv-content-option">Search Only</span><br/><span class="dropdiv-content-option">Hidden</span>';
 				$external_html .= '</div>';
 		  		$external_html .= '</div>';
 				$external_html .= '<div class="'.$visstyle.' attribute">'.$external_meta.'</div>';
@@ -1109,27 +1095,26 @@ function spe_initial_value_setup_script($type, $initial_value_array, $prod_id) {
 	}
 	
 	echo '<script>
-	window.initialValues.productsDisplayed += 1;';
+	window.initialValues.productsDisplayed += 1;
+	';
 	
 	echo 'prodId = ', $prod_id, ';
 	';
 	foreach($initial_value_array as $k => $v) {
 		if (is_numeric($v)) {
-			echo $k, ' = ', $v, ';
-			';
+			echo $k , ' = ' , $v , ';';
+		} else if ($v == ''){
+		  echo $k , " = undefined;";
 		} else {
-		  echo $k, " = '", $v, "';
-		  ";
+		  echo $k , " = '" , $v , "';";
 		}
 	}
 	echo 'window.initialValues[prodId] = {';
 	foreach($initial_value_array as $k => $v) {
 		if (is_numeric($v)) {
-			echo $k, " : ", $v, ",
-		  ";
+			echo $k , " : " , $v , ",";
 		} else {
-		  echo "'", $k, "' : '", $v, "',
-		  ";
+		  echo "'" , $k , "' : '" , $v , "',";
 		}
 	}
 	echo '};';
@@ -1156,7 +1141,7 @@ function spe_display_product_prices($product, $prod_id) {
 function spe_display_product_visibility($product, $visvar) {
 	echo '<div class="spe-prod-title">Visibility: <div id="'.$product.'-visibility" class="vis edit">'.$visvar[2];
 	echo '<div id="'.$product.'-visibility-dropdown" class="dropdiv-content vis">';
-	echo '<span class="dropdiv-content-option">Shop and search results</span><br/><span class="dropdiv-content-option">Shop only</span><br/><span class="dropdiv-content-option">Search only</span><br/><span class="dropdiv-content-option">Hidden</span>';
+	echo '<span class="dropdiv-content-option">Shop and Search Results</span><br/><span class="dropdiv-content-option">Shop Only</span><br/><span class="dropdiv-content-option">Search Only</span><br/><span class="dropdiv-content-option">Hidden</span>';
 	echo '</div></div>';
 }
 function spe_display_external_target_url($prod_id, $url) {
