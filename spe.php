@@ -392,7 +392,7 @@ function special_product_menu_link_callback() {
 							  		$variation_html .= '<div id="'.$variation.'-managestock-dropdown" class="dropdiv-content man-stock center">';
 							  		$variation_html .= '<span class="dropdiv-content-option">yes</span><br/><span class="dropdiv-content-option">no</span>';
 							  		$variation_html .= '</div>';
-							  		$variation_html .= '</div>';https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&ved=2ahUKEwiu7d2rlffyAhWNQjABHaFKCRMQFnoECAkQAQ&url=https%3A%2F%2Fstackoverflow.com%2Fquestions%2F29374743%2Fusing-ternary-operator-without-the-else-statement-php&usg=AOvVaw3mBYlG9yWXlDdW6-bt0GYD
+							  		$variation_html .= '</div>';
 									$variation_html .= '<div id="'. $variation . '-stock" class="stock stock-val '.(($stock[0] == 1) ? 'integer-val' : '').' center bold'.set_bg($stock).'" contentEditable="true">'.(($stock[0] == 1) ? $stock[1] : $stock[2]).'</div>';
 									echo $variation_html;
 									?>
