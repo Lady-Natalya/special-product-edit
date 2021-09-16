@@ -302,7 +302,7 @@ function special_product_menu_link_callback() {
 		  	echo '<div style="display:inline-block;background-color:#F0F0F0;padding:0.125rem 0.5rem;min-width:6rem;">&nbsp;Product ID&nbsp;</div><div style="display:inline-block;background-color:#FFFFFF;padding:0.125rem 0.5rem;min-width:6rem;">&nbsp;Product Type&nbsp;</div><div style="display:inline-block;background-color:#FFFFFF;padding:0.125rem 0.5rem;">&nbsp;post_title&nbsp;</div><br />';
 			foreach($returned_product_data as $row) {
 				$product = wc_get_product($row->ID);
-				echo '<div style="display:inline-block;background-color:#F0F0F0;padding:0.125rem 0.5rem;min-width:6rem;">&nbsp;<a href="?page=special-product-page&product_id=', $row->ID, '">', $row->ID, '</a>&nbsp;</div><div style="display:inline-block;background-color:#FFFFFF;padding:0.125rem 0.5rem;min-width:6rem;">&nbsp;', $product->get_type(), '&nbsp;</div><div style="display:inline-block;background-color:#FFFFFF;padding:0.125rem 0.5rem;">&nbsp;', $row->post_title, '&nbsp;</div><br />';
+				echo '<div style="display:inline-block;background-color:#F0F0F0;padding:0.125rem 0.5rem;min-width:6rem;">&nbsp;', spe_product_link($row->ID), '</a>&nbsp;</div><div style="display:inline-block;background-color:#FFFFFF;padding:0.125rem 0.5rem;min-width:6rem;">&nbsp;', $product->get_type(), '&nbsp;</div><div style="display:inline-block;background-color:#FFFFFF;padding:0.125rem 0.5rem;">&nbsp;', $row->post_title, '&nbsp;</div><br />';
 			}
 		} else {
 			if($selected_product_type != "all") {
@@ -585,6 +585,10 @@ function spe_tool_setting_default_page($args) {
 function product_link($prod_id) {
   return '<a href="'. admin_url( 'post.php?post=' . absint( $prod_id ) . '&action=edit' ) .'" >#' . $prod_id . '</a>';
 }
+function spe_product_link($prod_id) {
+  return '<a href="?page=special-product-page&product_id=' . absint( $prod_id ) . '" >' . $prod_id . '</a>';
+}
+
 function evaluate_stock($var, $db) {
   	// This function retrieves all 3 stock values for a product
 	$querystr = "SELECT meta_value FROM `" . $db->prefix . "postmeta` WHERE post_id = " . $var . " and meta_key = '_manage_stock' LIMIT 1";
@@ -992,7 +996,7 @@ function display_external_product_rows($res, $db) {
 			?>
 		  	<div<?php echo ($i == (count($res) - 1)) ? '' : ' class="no-border"';?>>
 			<?php
-		 		$external_html = '<div class="info-label id">External ' . product_link($external) . '</div>';
+		 		$external_html = '<div class="info-label id">External ' . spe_product_link($external) . '</div>';
 		  		$external_html .= '<div id="'.$external.'-visibility" class="'.$visstyle.' vis edit">'.$visvar[2];
 		  		$external_html .= '<div id="'.$external.'-visibility-dropdown" class="dropdiv-content vis center">';
 				$external_html .= '<span class="dropdiv-content-option">Shop and Search Results</span><br/><span class="dropdiv-content-option">Shop Only</span><br/><span class="dropdiv-content-option">Search Only</span><br/><span class="dropdiv-content-option">Hidden</span>';
