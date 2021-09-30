@@ -18,9 +18,6 @@ function special_product_menu_link() {
 		'special_product_menu_link_callback' );
 }
 
-
-// https://mosaicartsupply.com/wp-admin/customize.php?return=%2Fwp-admin%2Fadmin.php%3Fpage%3Dedit-snippet%26id%3D54//
-
 // ############
 // Display Page
 // ############
@@ -234,6 +231,10 @@ function special_product_menu_link_callback() {
 							$product->set_manage_stock($edited_value);
 						  	$product->save();
 						}
+						if ($property_name == 'stockStatus') {
+							$product->set_stock_status($edited_value);
+						  	$product->save();
+						}
 						if ($property_name == 'excludeFromSearch') {
 							$exclude_from_search = $edited_value;
 						}
@@ -393,7 +394,7 @@ function special_product_menu_link_callback() {
 							  		$variation_html .= '<span class="dropdiv-content-option">yes</span><br/><span class="dropdiv-content-option">no</span>';
 							  		$variation_html .= '</div>';
 							  		$variation_html .= '</div>';
-									$variation_html .= '<div id="'. $variation . '-stock" class="stock stock-val '.(($stock[0] == 1) ? 'integer-val' : '').' center bold'.set_bg($stock).'" contentEditable="true">'.(($stock[0] == 1) ? $stock[1] : $stock[2]).'</div>';
+									$variation_html .= '<div id="'. $variation . '-stock" class="stock stock-val '.(($stock[0] == 1) ? 'integer-val' : 'string-val').' center bold'.set_bg($stock).'" contentEditable="true">'.(($stock[0] == 1) ? $stock[1] : $stock[2]).'</div>';
 									echo $variation_html;
 									?>
 			  					</div><br />
@@ -406,8 +407,8 @@ function special_product_menu_link_callback() {
 								$initial_value_array = array(
 									"sku" => ($sku ?? ''),
 									"manageStock" => ($stock[0] ?? 'no'), // Could also be set to 'yes' as default.  Could add as optional setting for the user.
-									"origStock" => ($stock[1] ?? 0),
-									"origStockStatus" => ($stock[2] ?? 'outofstock'),
+									"stock" => ($stock[1] ?? 0),
+									"stockStatus" => ($stock[2] ?? 'outofstock'),
 									"regularPrice" => ($reg_price ?? ''),
 									"salePrice" => ($sale_price ?? ''),
 								);
@@ -468,8 +469,8 @@ function special_product_menu_link_callback() {
 						$initial_value_array = array(
 							"sku" => $sku,
 							"manageStock" => ($stock[0] ?? 'no'),
-							"origStock" => ($stock[1] ?? 0),
-							"origStockStatus" => ($stock[2] ?? 'outofstock'),
+							"stock" => ($stock[1] ?? 0),
+							"stockStatus" => ($stock[2] ?? 'outofstock'),
 							"excludeFromSearch" => ($visvar[0] ?? 0),
 							"excludeFromCatalog" => ($visvar[1] ?? 0),
 							"regularPrice" => ($prices[0] ?? ''),
@@ -635,6 +636,7 @@ function generate_product_edit_script() {
 		console.log('window.initialValues', window.initialValues);
 	  
 		function setNumberBGColor(objRef, newVal, origVal) {
+			console.log('setNumberBGColor', newVal, origVal);
 			if (newVal < origVal) {
 				if(!objRef.classList.contains('decreased')) objRef.classList.add('decreased');
 				if(objRef.classList.contains('increased')) objRef.classList.remove('increased');
@@ -649,7 +651,7 @@ function generate_product_edit_script() {
 		}
 		function setStockFontColor(objRef, newStock) {
 			negativeClass = objRef.className.includes('negative');
-			if (newStock >= 0) {
+			if ((newStock >= 0) || (newStock == 'instock') || (newStock == 'outofstock')) {
 				if (negativeClass) {
 					objRef.classList.toggle('negative');
 				}
@@ -725,6 +727,15 @@ function generate_product_edit_script() {
 				}
 			}
 		});
+		window.addEventListener('paste', function(e) {
+			if(e.target) {
+				if (!e.target.id.includes('spe_tool_setting')){
+					e.preventDefault();
+					var text = e.clipboardData.getData("text/plain");
+					document.execCommand("insertHTML", false, text);
+				}
+			}
+		});
 		window.addEventListener('focusout',function(e){
 			if(e.target) {
 				if ((e.target.className.includes('float-val')) || (e.target.className.includes('integer-val')) || (e.target.className.includes('string-val'))) {
@@ -764,6 +775,25 @@ function generate_product_edit_script() {
 				
 					switch (dataKey) {
 						case 'stock':
+							if (window.modifiedValues[prodId] == undefined) {
+								console.log('mod values undefined');
+								manageStock = window.initialValues[prodId].manageStock;
+								console.log(window.initialValues[prodId].manageStock);
+								if (manageStock == 0) {
+									dataKey = 'stockStatus';
+								}
+							} else if (window.modifiedValues[prodId].manageStock == undefined) {
+								console.log('mod values defined but mod values manageStock undefined');
+								manageStock = window.initialValues[prodId].manageStock;
+								console.log(window.initialValues[prodId].manageStock);
+								if (manageStock == 0) {
+									dataKey = 'stockStatus';
+								}
+							} else if (window.modifiedValues[prodId].manageStock == 0) {
+								console.log('mod values manageStock = 0');
+								dataKey = 'stockStatus';
+							}
+					
 							origStock = window.initialValues[prodId].stock;
 							
 							if (origStock == newValue) {
