@@ -366,7 +366,6 @@ function special_product_menu_link_callback() {
 				switch ($type) {
 					case 'variable':
 						if ($variations = $product->get_children()) {
-						  	setup_value_editing();
 						  	echo '<div class="u-line">'; // Overall variation table div
 							
 							display_variable_product_table_header();
@@ -697,29 +696,8 @@ function generate_product_edit_script() {
 			// Mark the value as modified
 			window.modifiedValues[prodId][key] = newValue;
 		}
-		/*
-				field.onkeydown = handleKey;
-				function handleKey(e) {
-					switch (e.keyCode) {
-						case 13: // Enter
-						field.blur();
-						break;
-					} */
-					/* if ((e.keyCode < 35 || e.keyCode > 40) && (e.keyCode < 48 || e.keyCode > 57) && e.keyCode != 190 && e.keyCode != 173 && e.keyCode != 16) {
-						console.log('NOT NUMERIC');
-						//return false;
-					} else if (e.keyCode != 173)
-					console.log(`YES ${e.code} ${e.keyCode}`);
-					console.log(e); */ /*
-				};
-				//`if(event.keyCode < 48 || event.keyCode > 57){return false;} else console.log("NUM")`;
-				/*
-				field.addEventListener("keypress", function(){
-					if (isNaN(String.fromCharCode(event.which))) {
-						console.log("input number only");
-						return false;
-					}
-				});*/
+	  
+		// This may get removed
 		window.addEventListener('focusin',function(e){
 			if(e.target) {
 				if ((e.target.className.includes('float-val')) || (e.target.className.includes('integer-val')) || (e.target.className.includes('string-val'))) {
@@ -727,6 +705,8 @@ function generate_product_edit_script() {
 				}
 			}
 		});
+	
+		// Disallow pasting of formatting into product data fields
 		window.addEventListener('paste', function(e) {
 			if(e.target) {
 				if (!e.target.id.includes('spe_tool_setting')){
@@ -736,6 +716,8 @@ function generate_product_edit_script() {
 				}
 			}
 		});
+	
+		// This is the main section for detecting user modification to product data fields
 		window.addEventListener('focusout',function(e){
 			if(e.target) {
 				if ((e.target.className.includes('float-val')) || (e.target.className.includes('integer-val')) || (e.target.className.includes('string-val'))) {
@@ -776,21 +758,16 @@ function generate_product_edit_script() {
 					switch (dataKey) {
 						case 'stock':
 							if (window.modifiedValues[prodId] == undefined) {
-								console.log('mod values undefined');
 								manageStock = window.initialValues[prodId].manageStock;
-								console.log(window.initialValues[prodId].manageStock);
 								if (manageStock == 0) {
 									dataKey = 'stockStatus';
 								}
 							} else if (window.modifiedValues[prodId].manageStock == undefined) {
-								console.log('mod values defined but mod values manageStock undefined');
 								manageStock = window.initialValues[prodId].manageStock;
-								console.log(window.initialValues[prodId].manageStock);
 								if (manageStock == 0) {
 									dataKey = 'stockStatus';
 								}
 							} else if (window.modifiedValues[prodId].manageStock == 0) {
-								console.log('mod values manageStock = 0');
 								dataKey = 'stockStatus';
 							}
 					
@@ -944,12 +921,6 @@ function generate_product_edit_script() {
 	<?php
 }
 
-function setup_value_editing() {
-  	?>
-
-	<?php
-  return;
-}
 function get_linked_externals($var, $db) {
   	// A product variation may have externals linked to it.  We can try to find those with a few techniques
 	$querystr = "SELECT post_id FROM `" . $db->prefix . "postmeta` WHERE meta_value = " . $var . " and meta_key = 'linked_variation_id'";
@@ -1086,42 +1057,6 @@ function set_bg_visibility($visibility) {
 	}
   	else return (' ');
 }
-
-/*
-								$initial_value_array = array(
-									"sku" => $sku,
-									"manageStock" => $stock[0],
-									"varId" => $variation,
-									"origStock" => $stock[1],
-									"origStockStatus" => $stock[2],
-									"regularPrice" => $reg_price,
-									"salePrice" => (sale_price ? $sale_price : '')
-								);
-								spe_initial_value_setup_script($type, $initial_value_array);
-								
-							  	
-							  	<script>
-									// Set up inititial value info for this product variation
-									window.initialValues.productsDisplayed += 1;
-								
-									sku = '<?php echo $sku; ?>';
-									manageStock = <?php echo $stock[0]; ?>; 
-									varId = <?php echo $variation; ?>;
-									origStock = <?php echo $stock[1]; ?>;
-									origStockStatus = '<?php echo $stock[2]; ?>';
-									regularPrice = '<?php echo $reg_price; ?>';
-									salePrice = '<?php echo $sale_price ? $sale_price : ''; ?>';
-
-								  	window.initialValues[varId] = {
-										'sku' : sku,
-										'manageStock': manageStock,
-										'stock': origStock,
-										'stockStatus': origStockStatus,
-										'regularPrice': regularPrice,
-										'salePrice' : salePrice
-									};
-								</script>
-*/
 	  
 function spe_initial_value_setup_script($type, $initial_value_array, $prod_id) {
 	if (empty($initial_value_array)) {
