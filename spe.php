@@ -181,7 +181,7 @@ function special_product_menu_link_callback() {
 			box-shadow: 0.25rem 0.25rem 0.25rem 0 rgba(0, 0, 0, .4);
 			border: 1px solid black;
 			border-radius: .25rem;
-			padding:0;
+			padding:0.25rem;
 		}
 		.dropdiv-content.man-stock {
 			margin:0.125rem 0;
@@ -200,11 +200,8 @@ function special_product_menu_link_callback() {
 		.dropdiv-content-option:hover {
 			background-color:#C0F0D0;
 		}
-		.dropdiv-content-view-only {
+		.dropdiv-content-view-only, .dropdiv-content-view-only--container {
 			background-color:#E8FFF8;
-			z-index:0;
-		}
-		.dropdiv-content-view-only--container {
 			z-index:0;
 		}
 	</style>
@@ -872,7 +869,8 @@ function generate_product_edit_script() {
 		document.addEventListener('click',function(e){
 			if(e.target) {
 				if (e.target.className.includes('dropdiv-content-view-only')) {
-					e.target.parentNode.classList.toggle("show");
+					e.target.parentNode.classList.remove("show");
+					e.target.parentNode.parentNode.innerHTML = e.target.parentNode.parentNode.innerHTML.replace('▲', '▼');
 				} else if (e.target.className.includes('man-stock')){
 					prodId = e.target.id.substring(0, e.target.id.indexOf("-"));
 					if (e.target.id.includes('-managestock-parentdiv')) {
@@ -887,6 +885,9 @@ function generate_product_edit_script() {
 					prodId = e.target.id.substring(0, e.target.id.indexOf("-"));
 					prodDropId = prodId + '-cat-dropdown';
 					document.getElementById(prodDropId).classList.toggle("show");
+					if (document.getElementById(prodDropId).classList.contains("show")) {
+						e.target.innerHTML = e.target.innerHTML.replace('▼', '▲');
+					} else e.target.innerHTML = e.target.innerHTML.replace('▲', '▼');
 				} else if (e.target.className.includes('dropdiv-content-option')) {
 					selectedValue = e.target.innerHTML;
 					prodId = e.target.parentNode.id.substring(0, e.target.parentNode.id.indexOf("-"));
@@ -1056,8 +1057,8 @@ function display_external_product_rows($res, $db) {
 				$external_html .= '<div id="' . $external . '-cat-drop-button" class="'.$visstyle.' product-cat edit">';
 		  	if (!empty($cat_ids)) {
 						if (count($cat_ids) > 1) {
-							$external_html .= 'Categories';
-						} else $external_html .= 'Category';
+							$external_html .= 'Categories &#9660;';
+						} else $external_html .= 'Category &#9660;';
 						$external_html .= '<div id="' . $external . '-cat-dropdown" class="dropdiv-content dropdiv-content-view-only--container product-cat center">';
 						foreach ($cat_ids as $cat_id) {
 								$term = get_term_by( 'id', $cat_id, 'product_cat' );
