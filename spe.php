@@ -204,6 +204,17 @@ function special_product_menu_link_callback() {
 			background-color:#E8FFF8;
 			z-index:0;
 		}
+		.dropdiv-content--standalone {
+			display:none;
+			position:absolute;
+			box-shadow: 0.25rem 0.25rem 0.25rem 0 rgba(0, 0, 0, .4);
+			border: 1px solid black;
+			border-radius: .25rem;
+			padding:0.25rem;
+		}
+		.dropdiv-content--standalone.show {
+			display:inline-block;
+		}		
 	</style>
 
 	<h2 style="margin-bottom:0;">Special Product Edit Tool</h2>
@@ -476,6 +487,7 @@ function special_product_menu_link_callback() {
 						}
 
 						spe_display_product_visibility($prod_id, $visvar);
+						spe_display_product_categories($product, $prod_id);
 
 						generate_product_edit_script();
 						break;
@@ -517,6 +529,7 @@ function special_product_menu_link_callback() {
 						echo '<div class="spe-prod-title">Stock: <span id="'. $prod_id . '-stock" class="spe-prod-info stock stock-val '.(($stock[0] == 1) ? 'integer-val' : '').' bold'.set_bg($stock).'" contentEditable="true">',$manage_stock ? ($product->get_stock_quantity() ? $product->get_stock_quantity() : '0') : $product->get_stock_status(),'</span></div>';
 
 						spe_display_product_visibility($prod_id, $visvar);
+						spe_display_product_categories($product, $prod_id);
 
 						generate_product_edit_script();
 						break;
@@ -1151,10 +1164,37 @@ function spe_display_product_prices($product, $prod_id) {
 	return $result;
 }
 function spe_display_product_visibility($product, $visvar) {
-	echo '<div class="spe-prod-title">Visibility: <div id="'.$product.'-visibility" class="vis edit">'.$visvar[2];
-	echo '<div id="'.$product.'-visibility-dropdown" class="dropdiv-content vis">';
-	echo '<span class="dropdiv-content-option">Shop and Search Results</span><br/><span class="dropdiv-content-option">Shop Only</span><br/><span class="dropdiv-content-option">Search Only</span><br/><span class="dropdiv-content-option">Hidden</span>';
-	echo '</div></div>';
+	?>
+		<div class="spe-prod-title">Visibility:
+			<div id="<?= $product; ?>-visibility" class="vis edit"><?= $visvar[2]; ?>
+				<div id="<?= $product; ?>-visibility-dropdown" class="dropdiv-content vis">
+					<span class="dropdiv-content-option">Shop and Search Results</span><br/>
+					<span class="dropdiv-content-option">Shop Only</span><br/>
+					<span class="dropdiv-content-option">Search Only</span><br/>
+					<span class="dropdiv-content-option">Hidden</span>
+				</div>
+	 		</div>
+	<?php
+}
+function spe_display_product_categories($product, $prod_id) {
+  	$cat_ids = $product->get_category_ids();
+	if (!empty($cat_ids)) {
+		if (count($cat_ids) > 1) {
+		  	?>
+	  		<div id="<?= $prod_id; ?>-cat-drop-button" class="product-cat">Categories &#9660;<br />
+				<div id="<?= $prod_id; ?>-cat-dropdown" class="dropdiv-content dropdiv-content-view-only--container dropdiv-content--standalone product-cat center"><?php
+				foreach ($cat_ids as $cat_id) {
+					$term = get_term_by( 'id', $cat_id, 'product_cat' );
+					echo '<span class="dropdiv-content-view-only">' . $term->name . '</span><br />';
+				}
+				?></div>
+	  		</div><?php
+		} else {
+		  	$term = get_term_by( 'id', $cat_ids[0], 'product_cat' );
+			?><div class="product-cat edit">Category: <?= $term->name; ?></div><?php
+		}	
+		
+	} else echo '<div class="product-cat edit">Uncategorized</div>';
 }
 function spe_display_external_target_url($prod_id, $url) {
 	echo '<div class="spe-prod-title external-url">External Link: <span id="'. $prod_id . '-external-link" class="spe-prod-info external-link string-val" contentEditable="true">',$url,'</span></div>';
