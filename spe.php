@@ -85,6 +85,16 @@ function special_product_menu_link_callback() {
 			border-bottom:none;
 			display:inline-block;
 		}
+		.spe-pt__cell--id {
+			background-color:#F0F0F0;
+			min-width:5rem;
+		}
+		.spe-pt__cell--type {
+			min-width:5rem;
+		}
+		.spe-pt__cell--status {
+			min-width:4rem;
+		}
 		.id {
 			min-width:7.5rem;
 		}
@@ -361,21 +371,24 @@ function special_product_menu_link_callback() {
 
 			$product_type_map = $wpdb->get_results($typequerystr);
 
-		  $querystr = "SELECT ID,post_title FROM `" . $wpdb->prefix . "posts` where post_type='product' and post_status = 'publish' and ID in (SELECT object_id FROM `" . $wpdb->prefix . "term_relationships` where term_taxonomy_id = '" . $product_type_map[0]->term_id . "') LIMIT " . $product_limit . ";";
+			$querystr = "SELECT ID,post_title FROM `" . $wpdb->prefix . "posts` where post_type='product' and ID in (SELECT object_id FROM `" . $wpdb->prefix . "term_relationships` where term_taxonomy_id = '" . $product_type_map[0]->term_id . "') LIMIT " . $product_limit . ";";
 
 		} else {
-		  $querystr = "SELECT ID,post_title FROM `" . $wpdb->prefix . "posts` where post_type='product' and post_status = 'publish' LIMIT " . $product_limit;
+			$querystr = "SELECT ID,post_title FROM `" . $wpdb->prefix . "posts` where post_type='product' LIMIT " . $product_limit;
 		};
 	  $returned_product_data = $wpdb->get_results($querystr);
 
 	  if (count($returned_product_data) >= 1) {
 			?>
 			<span class="load-status-text load-status-text__normal">Loaded <?php echo ucfirst($selected_product_type); ?> Product List</span><br /><br >
-			<div style="display:inline-block;background-color:#F0F0F0;padding:0.125rem 0.5rem;min-width:6rem;">&nbsp;Product ID&nbsp;</div><div style="display:inline-block;background-color:#FFFFFF;padding:0.125rem 0.5rem;min-width:6rem;">&nbsp;Product Type&nbsp;</div><div style="display:inline-block;background-color:#FFFFFF;padding:0.125rem 0.5rem;">&nbsp;post_title&nbsp;</div><br />
+			<div class="spe-pt__cell spe-pt__cell--id">&nbsp;Product ID&nbsp;</div><div class="spe-pt__cell spe-pt__cell--type">&nbsp;Product Type&nbsp;</div><div class="spe-pt__cell spe-pt__cell--status">&nbsp;Status&nbsp;</div><div class="spe-pt__cell">&nbsp;post_title&nbsp;</div><br />
 			<?php
 			foreach($returned_product_data as $row) {
 				$product = wc_get_product($row->ID);
-				echo '<div style="display:inline-block;background-color:#F0F0F0;padding:0.125rem 0.5rem;min-width:6rem;">&nbsp;', spe_product_link($row->ID), '</a>&nbsp;</div><div style="display:inline-block;background-color:#FFFFFF;padding:0.125rem 0.5rem;min-width:6rem;">&nbsp;', $product->get_type(), '&nbsp;</div><div style="display:inline-block;background-color:#FFFFFF;padding:0.125rem 0.5rem;">&nbsp;', $row->post_title, '&nbsp;</div><br />';
+				$prod_status = $product->get_status();
+				$prod_vis_status = evaluate_prod_vis_style($prod_status, ' ');
+			  
+				echo '<div class="spe-pt__cell spe-pt__cell--id">&nbsp;', spe_product_link($row->ID), '</a>&nbsp;</div><div class="spe-pt__cell spe-pt__cell--type ',$prod_vis_status,'">&nbsp;', $product->get_type(), '&nbsp;</div><div class="spe-pt__cell spe-pt__cell--status ',$prod_vis_status,'">&nbsp;',$prod_status,'&nbsp;</div><div class="spe-pt__cell ',$prod_vis_status,'">&nbsp;', $row->post_title, '&nbsp;</div><br />';
 			}
 		} else {
 			if($selected_product_type != "all") {
@@ -1102,7 +1115,7 @@ function evaluate_visibility_vars($visstr) {
 	}
 	return $result;
 }
-function evaluate_external_vis_style($external_status, $vis_str) {
+function evaluate_prod_vis_style($external_status, $vis_str) {
 	/**
 	*	Returns $result which is a string containing either a blank space or a class name to be aplied to a div element
 	*/
@@ -1158,7 +1171,7 @@ function display_external_product_rows($res, $db) {
 			$visstyle = ' ';
 
 			$visvar = evaluate_visibility_vars($meta[2]);
-			$visstyle = evaluate_external_vis_style($external_status, $visvar[2]);
+			$visstyle = evaluate_prod_vis_style($external_status, $visvar[2]);
 
 			?>
 		  	<div class="spe-pt__row<?php echo ($i == (count($res) - 1)) ? '' : ' no-border'; ?>">
