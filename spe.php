@@ -381,7 +381,7 @@ function special_product_menu_link_callback() {
 
 	if(isset($_GET['producttype']) || isset($starter_page))
 	{
-		$selected_product_type = ($_GET['producttype'] ? $_GET['producttype'] : $starter_page);
+		$selected_product_type = (array_key_exists('producttype', $_GET) ? $_GET['producttype'] : $starter_page);
 
 	  // User has selected a product type from the dropdown.
 	  if($selected_product_type != "all") {
@@ -560,15 +560,15 @@ function special_product_menu_link_callback() {
 						$terms = get_product_visibility_terms($wpdb);
 		  				$meta = get_product_meta($prod_id, $wpdb, $terms);
 					
-						$external_meta = get_external_product_meta($prod_id, $wpdb, 1);
-						spe_display_external_target_url($prod_id, $external_meta);
+						$product_url = get_product_url_or_color($prod_id, $wpdb, 1);
+						spe_display_external_target_url($prod_id, $product_url);
 
 						$visvar = evaluate_visibility_vars($meta[2]);
 
 						$initial_value_array = array(
 							"excludeFromSearch" => ($visvar[0] ?? 0),
 							"excludeFromCatalog" => ($visvar[1] ?? 0),
-							"externalLink" => ($external_meta ?? ''),
+							"externalLink" => ($product_url ?? ''),
 							"menuOrder" => ($menu_order ?? 0),
 							"name" => ($product_name ?? ''),
 							"regularPrice" => ($prices[0] ?? ''),
@@ -1216,13 +1216,13 @@ function evaluate_visibility_vars($visstr) {
 	}
 	return $result;
 }
-function evaluate_prod_vis_style($external_status, $vis_str) {
+function evaluate_prod_vis_style($prod_status, $vis_str) {
 	/**
 	*	Returns $result which is a string containing either a blank space or a class name to be aplied to a div element
 	*/
 	$result = ' ';
 
-	switch ($external_status) {
+	switch ($prod_status) {
 		case 'trash':
 			$result = 'spe-prod-table__trash';
 			break;
@@ -1256,72 +1256,75 @@ function display_external_product_rows($res, $db) {
  	$terms = get_product_visibility_terms($db);
 
 	foreach($res as $row) {
-		$ext_prod_id = $row->post_id;
-		if ($ext_prod_id) {
-			$meta = get_product_meta($ext_prod_id, $db, $terms, true);
-			$external_meta = get_external_product_meta($ext_prod_id, $db, 0);
-			$external_product = wc_get_product($ext_prod_id);
+		$prod_id = $row->post_id;
+		if ($prod_id) {
+			$product = wc_get_product($prod_id);
+		 	$type = $product->get_type();
 
-			if (!$external_product = wc_get_product( $ext_prod_id )) {
-				echo '<span class="spe_error desc-text">DEBUG: External ID #', $ext_prod_id, ' is invalid.  Skipping.</span><br />';
+			$meta = get_product_meta($prod_id, $db, $terms, true);
+			$product_color_from_url = get_product_url_or_color($prod_id, $db, 0);
+			
+
+			if (!$product = wc_get_product( $prod_id )) {
+				echo '<span class="spe_error desc-text">DEBUG: External ID #', $prod_id, ' is invalid.  Skipping.</span><br />';
 				continue 1;
 			}
 
-			$external_status = $external_product->get_status();
-			$cat_ids = $external_product->get_category_ids();
+			$prod_status = $product->get_status();
+			$cat_ids = $product->get_category_ids();
 			$visstyle = ' ';
 
 			$visvar = evaluate_visibility_vars($meta[2]);
-			$visstyle = evaluate_prod_vis_style($external_status, $visvar[2]);
+			$visstyle = evaluate_prod_vis_style($prod_status, $visvar[2]);
 
 			?>
 		  	<div class="spe-pt__row<?php echo ($i == (count($res) - 1)) ? '' : ' no-border'; ?>">
 			<?php
-		 		$external_html = '<div class="spe-pt__cell spe-prod-table--info-label ' . $external_status . ' id">External ' . spe_product_link($ext_prod_id) . '</div>';
+		 		$linked_prod_html = '<div class="spe-pt__cell spe-prod-table--info-label ' . $prod_status . ' id">'. ucfirst($type) .' ' . spe_product_link($prod_id) . '</div>';
 
-		  		$external_html .= '<div id="'.$ext_prod_id.'-visibility" class="spe-pt__cell spe-dropdown-parent '.$visstyle.' spe-dropdown--vis edit">'.$visvar[2];
-		  		$external_html .= '<div id="'.$ext_prod_id.'-visibility-dropdown" class="dropdiv-content spe-dropdown--vis center">';
-				$external_html .= '<span class="dropdiv-content-option">Shop and Search</span><br /><span class="dropdiv-content-option">Shop Only</span><br/><span class="dropdiv-content-option">Search Only</span><br/><span class="dropdiv-content-option">Hidden</span>';
-				$external_html .= '</div>';
-		  		$external_html .= '</div>';
-				//echo $external_html;
+		  		$linked_prod_html .= '<div id="'.$prod_id.'-visibility" class="spe-pt__cell spe-dropdown-parent '.$visstyle.' spe-dropdown--vis edit">'.$visvar[2];
+		  		$linked_prod_html .= '<div id="'.$prod_id.'-visibility-dropdown" class="dropdiv-content spe-dropdown--vis center">';
+				$linked_prod_html .= '<span class="dropdiv-content-option">Shop and Search</span><br /><span class="dropdiv-content-option">Shop Only</span><br/><span class="dropdiv-content-option">Search Only</span><br/><span class="dropdiv-content-option">Hidden</span>';
+				$linked_prod_html .= '</div>';
+		  		$linked_prod_html .= '</div>';
+				//echo $linked_prod_html;
 		
-				//$external_html .= spe_display_product_post_status($ext_prod_id, $prod_status, 2, $visstyle);
+				//$linked_prod_html .= spe_display_product_post_status($prod_id, $prod_status, 2, $visstyle);
 
-				$external_html .= '<div id="'.$ext_prod_id.'-post-status" class="spe-pt__cell spe-dropdown-parent '.$visstyle.' spe-dropdown--status">'.$external_status;
-		  		$external_html .= '<div id="'.$ext_prod_id.'-post-status-dropdown" class="dropdiv-content spe-dropdown--status center">';
-					$external_html .= '<span class="dropdiv-content-option">publish</span><br /><span class="dropdiv-content-option">draft</span><br/><span class="dropdiv-content-option">private</span><br/><span class="dropdiv-content-option">trash</span>';
-					$external_html .= '</div>';
-		  		$external_html .= '</div>';
+				$linked_prod_html .= '<div id="'.$prod_id.'-post-status" class="spe-pt__cell spe-dropdown-parent '.$visstyle.' spe-dropdown--status">'.$prod_status;
+		  		$linked_prod_html .= '<div id="'.$prod_id.'-post-status-dropdown" class="dropdiv-content spe-dropdown--status center">';
+					$linked_prod_html .= '<span class="dropdiv-content-option">publish</span><br /><span class="dropdiv-content-option">draft</span><br/><span class="dropdiv-content-option">private</span><br/><span class="dropdiv-content-option">trash</span>';
+					$linked_prod_html .= '</div>';
+		  		$linked_prod_html .= '</div>';
 
-				$external_html .= '<div class="spe-pt__cell '.$visstyle.' attribute">'.$external_meta.'</div>';
-		 		$external_html .= '<div id="'. $ext_prod_id . '-reg-price" class="spe-pt__cell center '.$visstyle.' price float-val" contentEditable="true">'.($meta[0] ? $meta[0] : 'N/A').'</div>';
-				$external_html .= '<div id="'. $ext_prod_id . '-sales-price" class="spe-pt__cell center '.$visstyle.' price sales-price float-val" contentEditable="true">'.($meta[1] ? $meta[1] : '&nbsp;').'</div>';
-				$external_html .= '<div id="' . $ext_prod_id . '-cat-drop-button" class="spe-pt__cell spe-dropdown-parent '.$visstyle.' product-cat edit">';
+				$linked_prod_html .= '<div class="spe-pt__cell '.$visstyle.' attribute">'.$product_color_from_url.'</div>';
+		 		$linked_prod_html .= '<div id="' . $prod_id . '-reg-price" class="spe-pt__cell center '.$visstyle.' price float-val" contentEditable="true">'.($meta[0] ? $meta[0] : 'N/A').'</div>';
+				$linked_prod_html .= '<div id="' . $prod_id . '-sales-price" class="spe-pt__cell center '.$visstyle.' price sales-price float-val" contentEditable="true">'.($meta[1] ? $meta[1] : '&nbsp;').'</div>';
+				$linked_prod_html .= '<div id="' . $prod_id . '-cat-drop-button" class="spe-pt__cell spe-dropdown-parent '.$visstyle.' product-cat edit">';
 		  	if (!empty($cat_ids)) {
 						if (count($cat_ids) > 1) {
-							$external_html .= 'Categories &#9660;';
-						} else $external_html .= 'Category &#9660;';
-						$external_html .= '<div id="' . $ext_prod_id . '-cat-dropdown" class="dropdiv-content dropdiv-content-view-only--container product-cat center">';
+							$linked_prod_html .= 'Categories &#9660;';
+						} else $linked_prod_html .= 'Category &#9660;';
+						$linked_prod_html .= '<div id="' . $prod_id . '-cat-dropdown" class="dropdiv-content dropdiv-content-view-only--container product-cat center">';
 						foreach ($cat_ids as $cat_id) {
 								$term = get_term_by( 'id', $cat_id, 'product_cat' );
-								$external_html .= '<span class="dropdiv-content-view-only">' . $term->name . '</span><br />';
+								$linked_prod_html .= '<span class="dropdiv-content-view-only">' . $term->name . '</span><br />';
 						}
-						$external_html .= '</div>';
-				} else $external_html .= 'uncategorized';
-		  	$external_html .= '</div>';
-		  	echo $external_html;
+						$linked_prod_html .= '</div>';
+				} else $linked_prod_html .= 'uncategorized';
+		  	$linked_prod_html .= '</div>';
+		  	echo $linked_prod_html;
 			?>
 			</div><br />
 			<script>
 				// Set up inititial value info for this external product
 				window.initialValues.productsDisplayed += 1;
-	  			externalId = <?php echo $ext_prod_id; ?>;
+	  			externalId = <?php echo $prod_id; ?>;
 	  			excludeFromSearch = <?php echo $visvar[0]; ?>;
 				excludeFromCatalog = <?php echo $visvar[1]; ?>;
 				regularPrice = <?php echo $meta[0]; ?>;
 				salePrice = <?php echo ($meta[1] ? $meta[1] : "''"); ?>;
-				status = "<?php echo $external_status; ?>";
+				status = "<?php echo $prod_status; ?>";
 				
 
 	  			window.initialValues[externalId] = {
@@ -1391,7 +1394,7 @@ function spe_display_product_post_status($prod_id, $status, $display_mode, $viss
 			</div>
 	 	</div>
 	<?php
-	if ($display_title) { echo '</div>';}
+	// if ($display_title) { echo '</div>';}
 }
 function spe_display_product_image($product) {
 	$image_id  = $product->get_image_id();
@@ -1541,7 +1544,7 @@ function get_product_meta($prod_id, $db, $terms) {
 
   return $result;
 }
-function get_external_product_meta($prod_id, $db, $return_full_color_url) {
+function get_product_url_or_color($prod_id, $db, $return_full_color_url) {
   // attribute_pa_color in variable product view, or the whole url in external product view
   if ($return_full_color_url == 0) {
   		$querystr = "SELECT substring_index(meta_value,'attribute_pa_color=',-1) FROM `" . $db->prefix . "postmeta` WHERE post_id = " . $prod_id . " and meta_key = '_product_url' LIMIT 1";
