@@ -70,6 +70,16 @@ function special_product_menu_link_callback() {
 			padding:0.125rem 0.5rem;
 			background-color:#E0E0E0;
 		}
+		.page-num {
+			text-align:center;
+			padding:0.125rem 0.5rem;
+			background-color:#E0E0E0;
+			display:inline-block;
+			border:1px solid white;
+		}
+		.current-page {
+			font-weight:bold;
+		}
 		.l-red, .spe_error {
 			background-color:#FFCCCC;
 		}
@@ -383,20 +393,44 @@ function special_product_menu_link_callback() {
 	{
 		$selected_product_type = (array_key_exists('producttype', $_GET) ? $_GET['producttype'] : $starter_page);
 
-	  // User has selected a product type from the dropdown.
-	  if($selected_product_type != "all") {
-			$typequerystr = "SELECT term_id FROM `" . $wpdb->prefix . "terms` where name='" . $selected_product_type . "' LIMIT " . $product_limit;
+		// Pagination -- Terrible but works
+		if (isset($_GET['pagenumber'])) {
+			// After isset to prevent PHP error
+			if (((is_int($_GET['pagenumber'])) || ctype_digit($_GET['pagenumber'])) && ((int)$_GET['pagenumber'] > 1)) {
+				$offset = ((int)$_GET['pagenumber'] * $product_limit) - $product_limit;
+				$page_num = (int)$_GET['pagenumber'];
+				$pagination_str = " LIMIT ". $offset . ", " . ($product_limit + 1);
+			} else {
+				$pagination_str = " LIMIT ". ($product_limit + 1);
+				$page_num = 1;
+			}
+		} else {
+			$pagination_str = " LIMIT ". ($product_limit + 1);
+			$page_num = 1;
+		}
+	  
+		// User has selected a product type from the dropdown.
+		if($selected_product_type != "all") {
+
+			$typequerystr = "SELECT term_id FROM `" . $wpdb->prefix . "terms` where name='" . $selected_product_type . "';";
 
 			$product_type_map = $wpdb->get_results($typequerystr);
 
-			$querystr = "SELECT ID,post_title FROM `" . $wpdb->prefix . "posts` where post_type='product' and ID in (SELECT object_id FROM `" . $wpdb->prefix . "term_relationships` where term_taxonomy_id = '" . $product_type_map[0]->term_id . "') LIMIT " . $product_limit . ";";
+			$querystr = "SELECT ID,post_title FROM `" . $wpdb->prefix . "posts` where post_type='product' and ID in (SELECT object_id FROM `" . $wpdb->prefix . "term_relationships` where term_taxonomy_id = '" . $product_type_map[0]->term_id . "') ".$pagination_str. ";";
+			$countquerystr = "SELECT COUNT(*) FROM `" . $wpdb->prefix . "posts` where post_type='product' and ID in (SELECT object_id FROM `" . $wpdb->prefix . "term_relationships` where term_taxonomy_id = '" . $product_type_map[0]->term_id . "')";
+			//echo '<br />$querystr:   ' . $querystr . '<br />';
 
 		} else {
-			$querystr = "SELECT ID,post_title FROM `" . $wpdb->prefix . "posts` where post_type='product' LIMIT " . $product_limit;
+			$querystr = "SELECT ID,post_title FROM `" . $wpdb->prefix . "posts` where post_type='product' " .$pagination_str. ";";
+			$countquerystr = "SELECT COUNT(*) FROM `" . $wpdb->prefix . "posts` where post_type='product'";
 		};
-	  $returned_product_data = $wpdb->get_results($querystr);
+		
+		$returned_product_data = $wpdb->get_results($querystr);
+		$returned_product_count = $wpdb->get_results($countquerystr)[0]->{"COUNT(*)"};
+		//echo 'returned prod count: ' . var_dump($returned_product_count) . '<br />' . var_dump($returned_product_count) . '<br />';
 
-	  if (count($returned_product_data) >= 1) {
+		$prod_count = count($returned_product_data);
+	  if ($prod_count >= 1) {
 			?>
 			<span class="load-status-text load-status-text__normal">Loaded <?php echo ucfirst($selected_product_type); ?> Product List</span><br /><br >
 			<?php
@@ -409,7 +443,14 @@ function special_product_menu_link_callback() {
 				echo '<div class="spe-pt__cell center man-stock">Manage Stock?</div><div class="spe-pt__cell center stock">Stock</div>';
 			}
 			?><br /><?php
+			$count = 0;
+			$more_prods = false;
 			foreach($returned_product_data as $row) {
+				$count += 1;
+				if ($count > $product_limit) {
+					$more_prods = true;
+					break;
+				}
 				$product = wc_get_product($row->ID);
 				$prod_status = $product->get_status();
 				$prod_vis_status = evaluate_prod_vis_style($prod_status, ' ');
@@ -450,6 +491,97 @@ function special_product_menu_link_callback() {
 				}
 			}
 			generate_product_edit_script();
+			if (($more_prods) || ($page_num >= 2)) {
+				echo '<br />
+					<span>Page:</span><br />
+					';
+				
+				$max_page = (intdiv((int)$returned_product_count, $product_limit) + (($returned_product_count % $product_limit) ? 1 : 0));
+				if ($max_page > 8) {
+					$mid_page = (intdiv($max_page, 2));
+				}
+				
+				if ($page_num == 1) {
+					spe_display_page_num(1, true);
+					if ($max_page == 2) {
+						spe_display_page_num(2, false);
+					} else if ($max_page < 8) {
+						spe_display_page_num(2, false);
+						spe_display_page_num($max_page, false);
+					} else if ($max_page > 8) {
+						spe_display_page_num(2, false);
+						spe_display_page_num($mid_page, false);
+						spe_display_page_num($max_page, false);						
+					}
+				} else if ($page_num == 2) {
+					spe_display_page_num(1, false);
+					if ($max_page == 2) {
+						spe_display_page_num(2, true);
+					} else if ($max_page < 8) {
+						spe_display_page_num(2, true);
+						spe_display_page_num(3, false);
+						spe_display_page_num($max_page, false);
+					} else if ($max_page > 8) {
+						spe_display_page_num(2, true);
+						spe_display_page_num(3, false);
+						spe_display_page_num($mid_page, false);
+						spe_display_page_num($max_page, false);						
+					}
+				}
+				
+				
+				if ($page_num > 2) {
+					spe_display_page_num(1, false);
+					
+					if ($max_page <= 8) {
+						spe_display_page_num(($page_num - 1), false);
+						spe_display_page_num($page_num, true);
+						if (($page_num + 1) < $max_page) {
+							spe_display_page_num(($page_num + 1), false);
+							spe_display_page_num($max_page, false);
+						} else if (($page_num + 1) == $max_page) {
+							spe_display_page_num($max_page, false);
+						}
+					} else if ($max_page > 8) {
+						if (($page_num + 1) < $mid_page) {
+							spe_display_page_num(($page_num - 1), false);
+							spe_display_page_num($page_num, true);
+							spe_display_page_num(($page_num + 1), false);
+							spe_display_page_num(($mid_page), false);
+							spe_display_page_num($max_page, false);
+						} else if (($page_num + 1) == $mid_page) {
+							spe_display_page_num(($page_num - 1), false);
+							spe_display_page_num($page_num, true);
+							spe_display_page_num($mid_page, false);
+							spe_display_page_num($max_page, false);
+						} else if ($page_num == $mid_page) {
+							spe_display_page_num(($page_num - 1), false);
+							spe_display_page_num($page_num, true);
+							spe_display_page_num(($page_num + 1), false);
+							spe_display_page_num($max_page, false);
+						} else if (($page_num -1) == $mid_page) {
+							spe_display_page_num(($page_num - 1), false);
+							spe_display_page_num($page_num, true);
+							spe_display_page_num(($page_num + 1), false);
+							spe_display_page_num($max_page, false);
+						} else if (($page_num -1) > $mid_page) {
+							spe_display_page_num(($mid_page), false);
+							spe_display_page_num(($page_num - 1), false);
+							spe_display_page_num($page_num, true);
+							if (($page_num + 1) < $max_page) {
+								spe_display_page_num(($page_num + 1), false);
+								spe_display_page_num($max_page, false);
+							} else if (($page_num + 1) == $max_page) {
+								spe_display_page_num($max_page, false);
+							}
+						}
+					} else {
+						if ($more_prods) spe_display_page_num(($page_num + 1), false);
+						if (($page_num + 1) < $max_page) spe_display_page_num($max_page, false);					
+					}
+					
+				}	
+			}
 		} else {
 			if($selected_product_type != "all") {
 				echo 'Sorry, no products with product_type "' . $selected_product_type . '" were found.';
@@ -1485,6 +1617,17 @@ function spe_display_product_categories($product, $prod_id) {
 }
 function spe_display_external_target_url($prod_id, $url) {
 	echo '<div class="spe-var-label external-url">External Link: <span id="'. $prod_id . '-external-link" class="spe-prod-info external-link string-val" contentEditable="true">',$url,'</span></div>';
+}
+function spe_display_page_num($page_num, $is_current_page) {
+	echo '<div class="page-num' . ($is_current_page ? ' current-page' : '') . '">' . spe_format_page_url($page_num) . '</div 77>';
+}
+function spe_format_page_url($page_num) {
+	$query_params_raw = explode('?', $_SERVER['QUERY_STRING']);
+	parse_str($_SERVER['QUERY_STRING'], $query_param_array);
+	unset($query_param_array['pagenumber']);
+	if (count($query_param_array)) {
+		return '<a href="'. admin_url( 'admin.php?' . http_build_query($query_param_array) . '&pagenumber=' . $page_num ) .'" >' . $page_num . '</a>';
+	} else return $page_num;
 }
 function get_product_visibility_terms($db) {
   // We want to determine external product visibility.  WC does this by determining if the external product is hidden from search and if it is hidden from the shop view
