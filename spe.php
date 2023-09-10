@@ -53,6 +53,7 @@ function special_product_menu_link_callback() {
 	<h2 style="margin-bottom:0;">Special Product Edit Tool</h2>
 	<div class="spe-main-container">
 		When complete, this tool will allow for quick editing of products.<br /><br />
+		Choose type of products to display:<br />
 
 		<!-- Product Type Dropdown -->
 		<form method="GET">
@@ -71,7 +72,7 @@ function special_product_menu_link_callback() {
 				<option value="all">all</option>
 			</select>
 			<input type="submit" value="Submit" />
-		</form><br />
+		</form>
 	<?php
 	// Check if data was submitted POST first, to see if anything needs to be updated in the database.
   	if($_SERVER['REQUEST_METHOD'] == "POST") {
@@ -110,6 +111,7 @@ function special_product_menu_link_callback() {
 							case 'imageId': set_post_thumbnail($product_id, $edited_value); break;
 							case 'salePrice': $product->set_sale_price($edited_value); break;
 							case 'regularPrice': $product->set_regular_price($edited_value); break;
+							/*case 'discountType': $product->update_meta_data('discount_type_string', $edited_value); $product->save_meta_data(); break;*/
 						}
 						if ($save_prod) {
 							$product->save();
@@ -137,10 +139,16 @@ function special_product_menu_link_callback() {
 			}
 			echo '</div><br />';
 		}
-  	unset($value);
-  	unset($sub_val);
+  	// unset($value);	// 2023 Sept 10 - Candidate for Deletion
+  	// unset($sub_val); // 2023 Sept 10 - Candidate for Deletion
 	}
-
+?>
+	</div><br />
+	<div class="spe-main-container">
+<?php
+	//	#####################################
+  	//	Display all Products of Selected Type
+  	//	#####################################
 	if(isset($_GET['producttype']) || isset($starter_page))
 	{
 		$selected_product_type = (array_key_exists('producttype', $_GET) ? $_GET['producttype'] : $starter_page);
@@ -210,12 +218,12 @@ function special_product_menu_link_callback() {
 					"status" => ($prod_status ?? '')
 				);
 			  
-				echo '<div class="spe-pt__cell spe-pt__cell--id">', spe_product_link($row->ID), '</a></div>';
+				echo '<div class="spe-pt__cell spe-pt__cell--id">', spe_product_link($row->ID, $row->ID), '</a></div>';
 				echo '<div class="spe-pt__cell spe-pt__cell--type ',$prod_vis_status,'">', $type, '</div>';
 				echo '<div class="spe-pt__cell spe-pt__cell--status ',$prod_vis_status,'">';
 				spe_display_product_post_status($row->ID, $prod_status, 0, '');
 				echo '</div>';
-				echo '<div class="spe-pt__cell spe-pt__cell--title ',$prod_vis_status,'">', $row->post_title, '</div>';
+				echo '<div class="spe-pt__cell spe-pt__cell--title ',$prod_vis_status,'">', spe_product_link($row->ID, $row->post_title), '</div>';
 
 				if (($type != 'external') && ($type != 'variable')){
 				  	//echo '[TYPE: ' . $type . ']';
@@ -349,7 +357,7 @@ function special_product_menu_link_callback() {
   	//	##########################
   	else if (isset($_GET['product_id'])) {
 	  	// User has selected a product.
-	  	if (is_numeric($_GET['product_id'])) {
+	  	if ((is_numeric($_GET['product_id'])) && ($_GET['product_id'] > 0)) {
 		  	if ($product = wc_get_product($_GET['product_id'])) {
 			  	// The product selected is valid.
 			  	$prod_id = $_GET['product_id'];
@@ -384,9 +392,9 @@ function special_product_menu_link_callback() {
 						if (!empty($initial_value_array)) {
 							spe_initial_value_setup_script($type, $initial_value_array, $_GET['product_id']);
 						}
-						//$variations = $product->get_children();
 
-						$querystr = "SELECT ID FROM `" . $wpdb->prefix . "posts` where post_parent=".$product->get_id(). ";";
+						//$querystr = "SELECT ID FROM `" . $wpdb->prefix . "posts` where post_parent=".$product->get_id(). ";"; // Old Version (Before August 2023)
+						$querystr = "SELECT ID FROM `" . $wpdb->prefix . "posts` where post_parent=".$product->get_id(). " AND post_type='product_variation';"; // Without post_type='product_variation' weird results can be returned
 						$results = $wpdb->get_results($querystr);
 						$variations = [];
 						foreach($results as $res) {
@@ -467,7 +475,8 @@ function special_product_menu_link_callback() {
 						}
 						break;
 				  	case 'external':
-						$prod_info = spe_display_basic_product_info($product, $prod_id);
+						$prod_info = spe_get_basic_product_info($product, $prod_id, $wpdb);
+						spe_display_basic_product_info($prod_id, $prod_info);
 					
 						$terms = get_product_visibility_terms($wpdb);
 						$meta = get_product_meta($prod_id, $wpdb, $terms);
@@ -477,21 +486,23 @@ function special_product_menu_link_callback() {
 						spe_display_external_target_url($prod_id, $product_url);
 
 						$initial_value_array = array(
+							"discountType" => ($prod_info['discountType'] ?? ''),
 							"excludeFromSearch" => ($visvar[0] ?? 0),
 							"excludeFromCatalog" => ($visvar[1] ?? 0),
 							"externalLink" => ($product_url ?? ''),
 							"imageId" => ($prod_info['imageId'] ?? ''),
-							"menuOrder" => ($menu_order ?? 0),
+							"menuOrder" => ($prod_info['menuOrder'] ?? 0),
 							"name" => ($product_name ?? ''),
-							"regularPrice" => ($prices[0] ?? ''),
-							"salePrice" => ($prices[1] ?? ''),
+							"regularPrice" => ($prod_info['regularPrice'] ?? ''),
+							"salePrice" => ($prod_info['salePrice'] ?? ''),
 							"status" => ($prod_status ?? '')
 						);
 
 						spe_finish_product_setup($product, $prod_id, $visvar, $initial_value_array, $type);
 						break;
 				  	default:
-						$prod_info = spe_display_basic_product_info($product, $prod_id);
+						$prod_info = spe_get_basic_product_info($product, $prod_id, $wpdb);
+						spe_display_basic_product_info($prod_id, $prod_info);
 					
 						$terms = get_product_visibility_terms($wpdb);
 						$meta = get_product_meta($prod_id, $wpdb, $terms);
@@ -499,20 +510,33 @@ function special_product_menu_link_callback() {
 						
 						$stock = evaluate_stock($prod_id, $wpdb);
 						spe_display_product_stock($product, $prod_id, $stock);
+					
+						// Product weight and dimensions not needed for external or variable products.
+						$weight = empty($product->get_weight()) ? 0 : $product->get_weight();
+						$length = empty($product->get_length()) ? 0 : $product->get_length();
+						$width = empty($product->get_width()) ? 0 : $product->get_width();
+						$height = empty($product->get_height()) ? 0 : $product->get_height();
+						spe_display_product_weight($prod_id, $weight);
+						spe_display_product_dimensions($prod_id, $length, $width, $height);
 
 						$initial_value_array = array(
+							"discountType" => ($prod_info['discountType'] ?? ''),
 							"excludeFromCatalog" => ($visvar[1] ?? 0),
 							"excludeFromSearch" => ($visvar[0] ?? 0),
+							"height" => ($height ?? 0),
 							"imageId" => ($prod_info['imageId'] ?? ''),
+							"length" => ($length ?? 0),
 							"manageStock" => ($stock[0] ?? 'no'),
-							"menuOrder" => ($menu_order ?? 0),
+							"menuOrder" => ($prod_info['menuOrder'] ?? 0),
 							"name" => ($product_name ?? ''),
-							"regularPrice" => ($prices[0] ?? ''),
-							"salePrice" => ($prices[1] ?? ''),
+							"regularPrice" => ($prod_info['regularPrice'] ?? ''),
+							"salePrice" => ($prod_info['salePrice'] ?? ''),
 							"sku" => (($product->get_sku()) ?? ''),
 							"status" => ($prod_status ?? ''),
 							"stock" => ($stock[1] ?? 0),
 							"stockStatus" => ($stock[2] ?? 'outofstock'),
+							"weight" => ($weight ?? 0),
+							"width" => ($width ?? 0)
 						);
 
 						spe_finish_product_setup($product, $prod_id, $visvar, $initial_value_array, $type);
@@ -531,14 +555,13 @@ function special_product_menu_link_callback() {
 		} else echo '<span class="load-status-text spe_error">ERROR -- INVALID PRODUCT ID</span><br /><br /><span class="desc-text">Product ID must be a positive integer.</span>';
 	}
   ?>
-		<br /><br />
 	</div>
 	<div class="spe-settings-container">
     	<form action="options.php" method="post">
         	<?php
         	settings_fields( 'spe_tool_settings' );
         	do_settings_sections( 'spe_tools_script' ); ?>
-        	<input name="submit" class="button button-primary" type="submit" value="<?php esc_attr_e( 'Save' ); ?>" />
+        	<input nsettings_fieldsame="submit" class="button button-primary" type="submit" value="<?php esc_attr_e( 'Save' ); ?>" />
     	</form>
 	</div>
 	<?php
@@ -674,10 +697,14 @@ function spe_tool_setting_default_page($args) {
 
 
 function product_link($prod_id) {
-  return '<a href="'. admin_url( 'post.php?post=' . absint( $prod_id ) . '&action=edit' ) .'" >#' . $prod_id . '</a>';
+  return '<a href="'. admin_url( 'post.php?post=' . absint( $prod_id ) . '&action=edit' ) .'" >#' . strval($prod_id) . '</a>';
 }
-function spe_product_link($prod_id, $leading_hash = false) {
-  return '<a href="?page=special-product-page&product_id=' . absint( $prod_id ) . '" >' . ($leading_hash ? '#' : '') . $prod_id . '</a>';
+function spe_product_link($prod_id, $inner_html, $leading_hash = false) {
+  return '<a href="?page=special-product-page&product_id=' . absint( $prod_id ) . '" >' . ($leading_hash ? '#' : '') . $inner_html . '</a>';
+}
+function search_orders_url($search_term) {
+	return admin_url( 'edit.php?s=' . strval( $search_term )) . '&post_status=all&post_type=shop_order&action=-1&m=0&_customer_user&paged=1&action2=-1';
+	//https://mosaicartsupply.com/wp-admin/edit.php?s=cyan-blue-jy16063&post_status=all&post_type=shop_order&action=-1&m=0&_customer_user&paged=1&action2=-1
 }
 
 function evaluate_stock($var, $db) {
@@ -821,6 +848,8 @@ function generate_product_edit_script() {
 						dataKey = 'stock';
 					} else if (e.target.className.includes('sku')) {
 						dataKey = 'sku';
+					} else if (e.target.className.includes('discount-type')) {
+						dataKey = 'discountType';
 					} else if (e.target.className.includes('external-link')) {
 						dataKey = 'externalLink';
 					} else if (e.target.className.includes('image-id')) {
@@ -928,10 +957,13 @@ function generate_product_edit_script() {
 							break;
 						default:
 							origVal = window.initialValues[prodId][dataKey];
+							console.log('orig', origVal, 'new', newValue, 'key', dataKey);
 							if (origVal == newValue) {
+								//console.log('orig = new');
 								setEditedClass(e.target, false);
 								removeModifiedProductValue(prodId, dataKey);
 							} else {
+								//console.log('orig != new');
 								setEditedClass(e.target, true);
 								evaluateModifiedValue(prodId, dataKey, newValue);
 							}
@@ -947,10 +979,8 @@ function generate_product_edit_script() {
 						e.target.parentNode.classList.remove("show");
 						e.target.parentNode.parentNode.innerHTML = e.target.parentNode.parentNode.innerHTML.replace('▲', '▼');
 					}
-				} else if (e.target.className.includes('dd-c-vo__copy-button')) {
-							//prodId = e.target.id.substring(0, e.target.id.indexOf("-"));
-							//data = e.target.id.split('-')[2];
-							data = e.target.nextSibling.innerHTML;
+				} else if ((e.target.className.includes('dd-c-vo__copy-button')) && (!e.target.id.includes('-search-color'))) {
+							data = e.target.value;
 				  			console.log(data);
 							var tempInput = document.createElement("input");
 							tempInput.value = data;
@@ -959,8 +989,8 @@ function generate_product_edit_script() {
 							document.execCommand("copy");
 							document.body.removeChild(tempInput);
 							e.target.parentNode.classList.remove("show");
-
-							//dataName = e.target.id.substring(e.target.id.split('-', 2).join('-').length, e.target.id.length);
+				} else if (e.target.className.includes('dd-c-vo__close-button')) {
+					e.target.parentNode.classList.remove("show");
 				} else if (e.target.className.includes('spe-dropdown-parent')) {
 					if (e.target.firstElementChild) {	// May not exist if displaying a trashed product variation
 						e.target.firstElementChild.classList.toggle("show");
@@ -1138,7 +1168,6 @@ function display_external_product_rows($res, $db) {
 			$product_url = get_product_url_or_color($prod_id, $db, 1);
 			$product_img_url = wp_get_attachment_image_url($product->get_image_id(), 'full');
 			
-
 			if (!$product = wc_get_product( $prod_id )) {
 				echo '<span class="spe_error desc-text">DEBUG: External ID #', $prod_id, ' is invalid.  Skipping.</span><br />';
 				continue 1;
@@ -1154,16 +1183,13 @@ function display_external_product_rows($res, $db) {
 			?>
 		  	<div class="spe-pt__row<?php echo ($i == (count($res) - 1)) ? '' : ' no-border'; ?>">
 			<?php
-		 		$linked_prod_html = '<div class="spe-pt__cell spe-prod-table--info-label ' . $prod_status . ' id">'. ucfirst($type) .' ' . spe_product_link($prod_id, true) . '</div>';
+		 		$linked_prod_html = '<div class="spe-pt__cell spe-prod-table--info-label ' . $prod_status . ' id">'. ucfirst($type) .' ' . spe_product_link($prod_id, $prod_id, true) . '</div>';
 
 		  		$linked_prod_html .= '<div id="'.$prod_id.'-visibility" class="spe-pt__cell spe-dropdown-parent '.$visstyle.' spe-dropdown--vis edit">'.$visvar[2];
 		  		$linked_prod_html .= '<div id="'.$prod_id.'-visibility-dropdown" class="dropdiv-content spe-dropdown--vis center">';
 				$linked_prod_html .= '<span class="dropdiv-content-option">Shop and Search</span><br /><span class="dropdiv-content-option">Shop Only</span><br/><span class="dropdiv-content-option">Search Only</span><br/><span class="dropdiv-content-option">Hidden</span>';
 				$linked_prod_html .= '</div>';
 		  		$linked_prod_html .= '</div>';
-				//echo $linked_prod_html;
-		
-				//$linked_prod_html .= spe_display_product_post_status($prod_id, $prod_status, 2, $visstyle);
 
 				$linked_prod_html .= '<div id="'.$prod_id.'-post-status" class="spe-pt__cell spe-dropdown-parent '.$visstyle.' spe-dropdown--status">'.$prod_status;
 		  		$linked_prod_html .= '<div id="'.$prod_id.'-post-status-dropdown" class="dropdiv-content spe-dropdown--status center">';
@@ -1173,12 +1199,11 @@ function display_external_product_rows($res, $db) {
 
 				$linked_prod_html .= '<div class="spe-pt__cell '.$visstyle.' spe-dropdown-parent attribute">'.$product_color_from_url;
 				$linked_prod_html .= '<div id="' . $prod_id . '-cat-dropdown" class="dropdiv-content dropdiv-content-view-only--container product-cat center selectable">';
-				$linked_prod_html .= '<div id="'.$prod_id.'-copy-color" class="dd-c-vo__copy-button">COPY</div><div class="dropdiv-content-view-only selectable dd-c-vo--copyable">'. $product_color_from_url .'</div><br style="clear:both;" />';
-				$linked_prod_html .= '<div id="'.$prod_id.'-copy-url" class="dd-c-vo__copy-button">COPY</div><div class="dropdiv-content-view-only selectable dd-c-vo--copyable">'. $product_url .'</div><br style="clear:both;" />';
-		  		$linked_prod_html .= '<div id="'.$prod_id.'-copy-img" class="dd-c-vo__copy-button">COPY</div><div class="dropdiv-content-view-only selectable dd-c-vo--copyable">'. $product_img_url .'</div>';
+				$linked_prod_html .= '<button id="'.$prod_id.'-copy-color" class="dd-c-vo__copy-button" value="' . $product_color_from_url . '">COPY</button><div class="dropdiv-content-view-only selectable dd-c-vo--copyable"><a href="' . search_orders_url($product_color_from_url) . '" target="_blank"><button id="'.$prod_id.'-search-color" class="dd-c-vo__copy-button">SEARCH IN ORDERS</button></a>'. $product_color_from_url .'</div><button class="dd-c-vo__close-button">&times;</button><br style="clear:both;" />';
+				$linked_prod_html .= '<button id="'.$prod_id.'-copy-url" class="dd-c-vo__copy-button" value="' . $product_url . '">COPY</button><div class="dropdiv-content-view-only selectable dd-c-vo--copyable">'. $product_url .'</div><br style="clear:both;" />';
+		  		$linked_prod_html .= '<button id="'.$prod_id.'-copy-img" class="dd-c-vo__copy-button" value="' . $product_img_url . '">COPY</button><div class="dropdiv-content-view-only selectable dd-c-vo--copyable">'. $product_img_url .'</div>';
 				$linked_prod_html .= '</div>';
 		  		$linked_prod_html .= '</div>';
-		  
 		  
 		  		$linked_prod_html .= '<div id="' . $prod_id . '-reg-price" class="spe-pt__cell center '.$visstyle.' price float-val" contentEditable="true">'.($meta[0] ? $meta[0] : 'N/A').'</div>';
 				$linked_prod_html .= '<div id="' . $prod_id . '-sales-price" class="spe-pt__cell center '.$visstyle.' price sales-price float-val" contentEditable="true">'.($meta[1] ? $meta[1] : '&nbsp;').'</div>';
@@ -1202,18 +1227,13 @@ function display_external_product_rows($res, $db) {
 				// Set up inititial value info for this external product
 				window.initialValues.productsDisplayed += 1;
 	  			externalId = <?php echo $prod_id; ?>;
-	  			excludeFromSearch = <?php echo $visvar[0]; ?>;
-				excludeFromCatalog = <?php echo $visvar[1]; ?>;
-				regularPrice = <?php echo $meta[0]; ?>;
-				salePrice = <?php echo ($meta[1] ? $meta[1] : "''"); ?>;
 				status = "<?php echo $prod_status; ?>";
 				
-
 	  			window.initialValues[externalId] = {
-	  				'excludeFromSearch': excludeFromSearch,
-	  				'excludeFromCatalog': excludeFromCatalog,
-					'regularPrice' : regularPrice,
-					'salePrice' : salePrice,
+	  				'excludeFromSearch': <?php echo $visvar[0]; ?>,
+	  				'excludeFromCatalog': <?php echo $visvar[1]; ?>,
+					'regularPrice' : <?php echo $meta[0]; ?>,
+					'salePrice' : <?php echo ($meta[1] ? $meta[1] : "''"); ?>,
 					'status' : status
 				};
 			</script>
@@ -1278,16 +1298,22 @@ function spe_display_product_post_status($prod_id, $status, $display_mode, $viss
 	<?php
 	// if ($display_title) { echo '</div>';}
 }
-function spe_display_basic_product_info($product, $prod_id) {
-	$menu_order = $product->get_menu_order();
-	$prod_status = $product->get_status();
-	$image_id = spe_display_product_image($product, $prod_id);
-//	$thumbnail_id = get_post_meta( $prod_id, '_thumbnail_id', true );
-//	echo _wp_post_thumbnail_html( $thumbnail_id, $prod_id );
-	$prices = spe_display_product_prices($product, $prod_id);
-	spe_display_product_menu_order($prod_id, $menu_order);
-	spe_display_product_post_status($prod_id, $prod_status, 1, '');
-	return array('imageId' => $image_id);
+function spe_get_basic_product_info($product, $prod_id, $db) {
+	$prices = spe_get_product_prices($product, $prod_id, $db);
+	return array(
+		'discountType' => $prices[2],
+		'imageId' => spe_get_product_image_id($product),
+		'menuOrder' => $product->get_menu_order(),
+		'regularPrice' => $prices[0],
+		'salePrice' => $prices[1],
+	  	'status' => $product->get_status()
+	);
+}
+function spe_display_basic_product_info($prod_id, $prod_info) {
+	spe_display_product_image($prod_id, $prod_info['imageId']);
+	spe_display_product_prices($prod_id, $prod_info);
+	spe_display_product_menu_order($prod_id, $prod_info['menuOrder']);
+	spe_display_product_post_status($prod_id, $prod_info['status'], 1, '');
 }
 function spe_finish_product_setup($product, $prod_id, $visvar, $initial_value_array, $type) {
 	if (!empty($initial_value_array)) {
@@ -1299,29 +1325,47 @@ function spe_finish_product_setup($product, $prod_id, $visvar, $initial_value_ar
 
 	generate_product_edit_script();
 }
-function spe_display_product_image($product, $prod_id) {
+function spe_get_product_image_id($product) {
 	$image_id  = $product->get_image_id();
+	return $image_id;
+}
+function spe_display_product_image($prod_id, $image_id) {
 	$image_url = wp_get_attachment_image_url( $image_id, 'full' );
 	?>
 	<a href="<?php echo $image_url; ?>" target="_blank"><img src="<?php echo $image_url; ?>" width="200"/></a><br />
-	<div class="spe-var-label image-url">Image Id: <span id="<?= $prod_id ?>-image-id" class="spe-prod-info image-id integer-val bold" contentEditable="true"><?= $image_id ?></span></div>
+	<div class="spe-var-label image-url">Image Id: <span id="<?= $prod_id ?>-image-id" class="spe-prod-info image-id integer-val" contentEditable="true"><?= $image_id ?></span></div>
 	<?php
-	return $image_id;
 }
-function spe_display_product_prices($product, $prod_id) {
-	$result = array(2);
+function spe_get_product_prices($product, $prod_id, $db) {
+	$result = array(3);
 	$result[0] = $product->get_regular_price();
 	$result[1] = $product->get_sale_price();
-
-	echo '<div class="spe-var-label price">Regular Price: <span id="'. $prod_id . '-reg-price" class="spe-prod-info price float-val" contentEditable="true">',($result[0] ? $result[0] : '&nbsp;&nbsp;'),'</span></div>';
-	echo '<div class="spe-var-label price">Sale Price: <span id="'. $prod_id . '-sales-price" class="spe-prod-info price sales-price float-val" contentEditable="true">',($result[1] ? $result[1] : '&nbsp;&nbsp;') ,'</span></div>';
-
+	$result[2] = spe_get_discount_type_string($prod_id, $db);
 	return $result;
+}
+function spe_display_product_prices($prod_id, $prod_info) {
+  	?>
+	<div id="<?= $prod_id; ?>-cat-display" class="spe-var-label">Price Info:</div>
+	<table class="spe-var-list-container">
+		<tr>
+			<td class="price">Regular Price:</td>
+	  		<td id="<?=$prod_id;?>-reg-price" class="spe-prod-info price float-val" contentEditable="true"><?=$prod_info['regularPrice'] ? $prod_info['regularPrice'] : '&nbsp;&nbsp;'?></td>
+	  	</tr>
+		<tr>
+			<td class="price">Sale Price:</td>
+	  		<td id="<?=$prod_id;?>-sales-price" class="spe-prod-info price sales-price float-val" contentEditable="true"><?=$prod_info['salePrice'] ? $prod_info['salePrice'] : '&nbsp;&nbsp;'?></td>
+	  	</tr>
+		<tr>
+			<td class="price">Discount Type Display Name:</td>
+	  		<td id="<?=$prod_id;?>-discount-type" class="spe-prod-info price discount-type string-val" contentEditable="true"><?=$prod_info['discountType']?></td>
+	  	</tr>
+	</table>
+	<?php
 }
 function spe_display_product_menu_order($prod_id, $menu_order) {
 	?>
 	<div class="spe-var-label">Menu Order:
-		<span id="<?= $prod_id ?>-menu-order" class="spe-prod-info spe-menu-order integer-val bold" contentEditable="true"><?= $menu_order ?></span>
+		<span id="<?= $prod_id ?>-menu-order" class="spe-prod-info spe-menu-order integer-val" contentEditable="true"><?= $menu_order ?></span>
 	</div>
 	<?php
 }
@@ -1338,13 +1382,13 @@ function spe_display_product_stock($product, $prod_id, $stock) {
 		<?php
 		if ($stock[0] == 1) {
 			?>
-			<span id="<?= $prod_id; ?>-stock" class="spe-prod-info stock stock-val integer-val bold<?= set_bg($stock); ?>" contentEditable="true">
+			<span id="<?= $prod_id; ?>-stock" class="spe-prod-info stock stock-val integer-val<?= set_bg($stock); ?>" contentEditable="true">
 				<?= ($product->get_stock_quantity() ? $product->get_stock_quantity() : '0'); ?>
 			</span>
 			<?php
 		} else {
 			?>
-			<div id="<?= $prod_id; ?>-stock-status-parentdiv" class="spe-prod-info spe-dropdown-parent stock-status spe-prod-selection bold<?= set_bg($stock); ?>"><?= $product->get_stock_status(); ?>
+			<div id="<?= $prod_id; ?>-stock-status-parentdiv" class="spe-prod-info spe-dropdown-parent stock-status spe-prod-selection<?= set_bg($stock); ?>"><?= $product->get_stock_status(); ?>
 	  			<div id="<?= $prod_id; ?>-stock-status-dropdown" class="dropdiv-content stock-status">
 					<span class="dropdiv-content-option">instock</span><br/><span class="dropdiv-content-option">outofstock</span>
 				</div>
@@ -1352,6 +1396,22 @@ function spe_display_product_stock($product, $prod_id, $stock) {
 	  		<?php
 		}
   		?>
+	</div>
+	<?php
+}
+function spe_display_product_weight($prod_id, $weight) {
+	?>
+	<div class="spe-var-label">Product Weight in Pounds:
+		<span "<?= $prod_id; ?>-weight" class="spe-prod-info spe-menu-order float-val" contentEditable="true"><?= $weight ?></span>
+	</div>
+	<?php
+}
+function spe_display_product_dimensions($prod_id, $p_l, $p_w, $p_h) {
+	?>
+	<div class="spe-var-label">Product Dimensions in Inches:<br />
+		Length <span "<?= $prod_id; ?>-length" class="spe-prod-info spe-menu-order float-val" contentEditable="true"><?= $p_l ?></span>
+		Width <span "<?= $prod_id; ?>-width" class="spe-prod-info spe-menu-order float-val" contentEditable="true"><?= $p_w ?></span>
+		Height <span "<?= $prod_id; ?>-height" class="spe-prod-info spe-menu-order float-val" contentEditable="true"><?= $p_h ?></span>
 	</div>
 	<?php
 }
@@ -1372,15 +1432,25 @@ function spe_display_product_categories($product, $prod_id) {
   	$cat_ids = $product->get_category_ids();
 	if (!empty($cat_ids)) {
 		if (count($cat_ids) > 1) {
-		  	?>
+		  	/*?>
 	  		<div id="<?= $prod_id; ?>-cat-drop-button" class="spe-dropdown-parent product-cat">Categories &#9660;
 				<div id="<?= $prod_id; ?>-cat-dropdown" class="dropdiv-content dropdiv-content-view-only--container dropdiv-content--standalone product-cat center"><?php
 				foreach ($cat_ids as $cat_id) {
 					$term = get_term_by( 'id', $cat_id, 'product_cat' );
 					echo '<span class="dropdiv-content-view-only">' . $term->name . '</span><br />';
 				}
-				?></div>
-	  		</div><?php
+				*/ ?></div>
+	  		</div>
+	  		<div id="<?= $prod_id; ?>-cat-display" class="spe-var-label">Categories:</div>
+	  			<div class="spe-var-list-container">
+					<?php
+					foreach ($cat_ids as $cat_id) {
+						$term = get_term_by( 'id', $cat_id, 'product_cat' );
+						echo '<span class="spe-var-list-item">' . $term->name . '</span><br />';
+					}
+					?>
+				</div>
+	  		<?php
 		} else {
 		  	$term = get_term_by( 'id', $cat_ids[0], 'product_cat' );
 			?><div class="product-cat edit">Category: <?= $term->name; ?></div><?php
@@ -1416,6 +1486,15 @@ function get_product_visibility_terms($db) {
   $result[1] = $termcat[0]->term_id;
 
   return $result;
+}
+function spe_get_discount_type_string($prod_id, $db) {
+	$querystr = "SELECT post_id FROM `" . $db->prefix . "postmeta` WHERE meta_value = " . $prod_id . " and meta_key = 'discount_type_string'";
+	$res = $db->get_results($querystr);
+  	if ($res) {
+	  	return $res;
+	} else {
+		return "";
+	}
 }
 function get_product_meta($prod_id, $db, $terms) {
 	/**
