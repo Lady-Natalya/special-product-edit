@@ -14,6 +14,9 @@ function spe_load_stylesheet($style_settings_arr) {
 		.spe-main-container {
 			background:#FFF;
 		}
+		#type {
+			margin-top:0.25rem;
+		}
 		.load-status-text {
 			font-size:1rem;padding:0.125rem 0.5rem;
 		}
@@ -167,16 +170,36 @@ function spe_load_stylesheet($style_settings_arr) {
 			padding:0.125rem 0;
 		}
 		.spe-prod-info {
-			padding: 0.25rem;
+			padding:0.125rem 0.25rem;
+			/*border:solid 1px black;*/
 		}
 		.spe-prod-selection {
 			display:inline-block;
 		}
 		.spe-var-label {
 			padding: 0.25rem 0;
+			font-weight:bold;
+		}
+		.spe-var-label span {
+			padding: 0.25rem 0;
+			font-weight:initial;
+		}
+		.spe-var-list-container {
+			/* border: solid 1px #000000; */
+			width: fit-content;
+			background-color: #F4F4F4;
+			line-height: 1.25rem;
+			border-radius: .25rem;
+			padding: 0.25rem;
+		}
+		.spe-var-list-item {
+			padding:0 .25rem;
 		}
 		.spe-prod-table div div.man-stock {
 			padding:0.125rem 0;
+		}
+		td.float-val, td.string-val {
+			text-align:center;
 		}
 		.dropdiv-content {
 			background-color:#CCFFDD;
@@ -212,6 +235,50 @@ function spe_load_stylesheet($style_settings_arr) {
 		.dropdiv-content-view-only, .dropdiv-content-view-only--container {
 			background-color:#E8FFF8;
 			z-index:0;
+		}
+		.dropdiv-content-view-only.selectable, .dropdiv-content-view-only--container.selectable {
+			background-color:#F0F0F0;
+		}
+	  	.dropdiv-content-view-only.dd-c-vo--copyable {
+			width:unset;
+	  	}
+		.dd-c-vo--copyable, .dd-c-vo__copy-button {
+			float:left;
+		  	margin-top:1px;
+			margin-bottom:1px;
+			padding:1px;
+		}
+		.dd-c-vo--copyable {
+			text-align: left;
+		}
+		.dd-c-vo__copy-button {
+			text-align: center;
+			margin-right:1rem;
+			border:1px solid black;
+			border-radius:3px;
+			background-color:white;
+		}
+		.dd-c-vo__close-button {
+			text-align: center;
+			float:right;
+			border:1px solid black;
+			border-radius:3px;
+			background-color:#FFCCCC;
+			color:black;
+			font-weight:bold;
+			font-family:monospace;
+		}
+		.dd-c-vo__copy-button:hover {
+			background-color:#EEEEFF;
+		}
+		.dd-c-vo__close-button:hover {
+			background-color:#FFAAAA;
+		}
+		.dd-c-vo__copy-button:active {
+			background-color:#CCCCFF;
+		}
+		.dd-c-vo__close-button:active {
+			background-color:#FF8888;
 		}
 		.dropdiv-content--standalone {
 			display:none;
