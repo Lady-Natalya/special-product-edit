@@ -109,8 +109,10 @@ function special_product_menu_link_callback() {
 							case 'excludeFromCatalog': $exclude_from_catalog = $edited_value; $save_prod = false; break;
 							case 'externalLink': $product->set_product_url($edited_value); break;
 							case 'imageId': set_post_thumbnail($product_id, $edited_value); break;
+							case 'linkedVariationId': $product->update_meta_data('linked_variation_id', $edited_value); $product->save_meta_data(); break;
 							case 'salePrice': $product->set_sale_price($edited_value); break;
 							case 'regularPrice': $product->set_regular_price($edited_value); break;
+							case 'superProductId': $product->update_meta_data('super_product_id', $edited_value); $product->save_meta_data(); break;
 							/*case 'discountType': $product->update_meta_data('discount_type_string', $edited_value); $product->save_meta_data(); break;*/
 						}
 						if ($save_prod) {
@@ -476,14 +478,25 @@ function special_product_menu_link_callback() {
 						break;
 				  	case 'external':
 						$prod_info = spe_get_basic_product_info($product, $prod_id, $wpdb);
+						$meta = get_product_meta($prod_id, $wpdb, $terms, true);
+					
+						spe_display_product_image($prod_info['imageId']);
+						
+						$prod_info_rows = Array(
+							Array('idSuffix' => '-image-id', 'name' => "Image ID", 'classes' => "image-id integer-val", 'val'=> spe_get_product_image_id($product)),
+							Array('idSuffix' => '-menu-order', 'name' => "Menu Order", 'classes' => "spe-menu-order integer-val", 'val'=> $prod_info['menuOrder'])
+						);
+						$product_url = get_product_url_or_color($prod_id, $wpdb, 1);
+						array_push($prod_info_rows, Array('idSuffix' => '-external-link', 'name' => "External Link", 'classes' => "external-link string-val", 'val' => $product_url));
+						array_push($prod_info_rows, Array('idSuffix' => '-super-product-id', 'name' => "Super Product ID", 'classes' => "integer-val", 'val'=> $meta[3]));
+						array_push($prod_info_rows, Array('idSuffix' => '-linked-variation-id', 'name' => "Linked Variation ID", 'classes' => "integer-val", 'val'=> $meta[4]));
+						spe_display_single_product_info_table($prod_id, $prod_info_rows);
+					
 						spe_display_basic_product_info($prod_id, $prod_info);
 					
 						$terms = get_product_visibility_terms($wpdb);
-						$meta = get_product_meta($prod_id, $wpdb, $terms);
 						$visvar = evaluate_visibility_vars($meta[2]);
 					
-						$product_url = get_product_url_or_color($prod_id, $wpdb, 1);
-						spe_display_external_target_url($prod_id, $product_url);
 
 						$initial_value_array = array(
 							"discountType" => ($prod_info['discountType'] ?? ''),
@@ -491,17 +504,27 @@ function special_product_menu_link_callback() {
 							"excludeFromCatalog" => ($visvar[1] ?? 0),
 							"externalLink" => ($product_url ?? ''),
 							"imageId" => ($prod_info['imageId'] ?? ''),
+							"linkedVariationId" => ($meta[4] ?? ''),
 							"menuOrder" => ($prod_info['menuOrder'] ?? 0),
 							"name" => ($product_name ?? ''),
 							"regularPrice" => ($prod_info['regularPrice'] ?? ''),
 							"salePrice" => ($prod_info['salePrice'] ?? ''),
-							"status" => ($prod_status ?? '')
+							"status" => ($prod_status ?? ''),
+							"superProductId" => ($meta[3] ?? '')
 						);
 
 						spe_finish_product_setup($product, $prod_id, $visvar, $initial_value_array, $type);
 						break;
 				  	default:
 						$prod_info = spe_get_basic_product_info($product, $prod_id, $wpdb);
+						spe_display_product_image($prod_info['imageId']);
+						
+						$prod_info_rows = Array(
+							Array('idSuffix' => '-image-id', 'name' => "Image ID", 'classes' => "image-id integer-val", 'val'=> spe_get_product_image_id($product)),
+							Array('idSuffix' => '-menu-order', 'name' => "Menu Order", 'classes' => "spe-menu-order integer-val", 'val'=> $prod_info['menuOrder'])
+						);
+						spe_display_single_product_info_table($prod_id, $prod_info_rows);
+					
 						spe_display_basic_product_info($prod_id, $prod_info);
 					
 						$terms = get_product_visibility_terms($wpdb);
@@ -854,12 +877,16 @@ function generate_product_edit_script() {
 						dataKey = 'externalLink';
 					} else if (e.target.className.includes('image-id')) {
 						dataKey = 'imageId';
+					} else if (e.target.id.includes('linked-variation-id')) {
+						dataKey = 'linkedVariationId';
 					} else if (e.target.className.includes('menu-order')) {
 						dataKey = 'menuOrder';
 					} else if (e.target.className.includes('name')) {
 						dataKey = 'name';
 					} else if (e.target.className.includes('sales-price')) {
 						dataKey = 'salePrice';
+					} else if (e.target.id.includes('super-product-id')) {
+						dataKey = 'superProductId';
 					} else if (e.target.className.includes('price')) dataKey = 'regularPrice';
 
 					if (e.target.className.includes('integer-val')) {
@@ -1108,7 +1135,19 @@ function get_linked_externals($var, $db) {
 			$color_str = '?attribute_pa_color=' . $color;
 			$querystr = "SELECT post_id FROM `" . $db->prefix . "postmeta` WHERE meta_value LIKE '%" . $color_str . "%' and meta_key = '_product_url'";
 			$res = $db->get_results($querystr);
+
 			if ($res) {
+				foreach ($res as $key => $linked_var) {
+				  	//echo $linked_var->post_id, " ";
+					$querystr = "SELECT meta_value FROM `" . $db->prefix . "postmeta` WHERE post_id = " . $linked_var->post_id . " and meta_key = 'linked_variation_id' LIMIT 1";
+					$linked_var_id = $db->get_results($querystr);
+					//echo " ", $linked_var_id[0]->meta_value;
+					if ($linked_var_id[0]->meta_value) {
+						if ($linked_var_id[0]->meta_value != $var) {
+							unset($res[$key]);	//	There already was a linked_variation_id present for product with id $linked_var_id[0]->meta_value and it was not the same as $var
+						}
+					}
+				}
 				return $res;
 			}
 		}
@@ -1310,9 +1349,7 @@ function spe_get_basic_product_info($product, $prod_id, $db) {
 	);
 }
 function spe_display_basic_product_info($prod_id, $prod_info) {
-	spe_display_product_image($prod_id, $prod_info['imageId']);
 	spe_display_product_prices($prod_id, $prod_info);
-	spe_display_product_menu_order($prod_id, $prod_info['menuOrder']);
 	spe_display_product_post_status($prod_id, $prod_info['status'], 1, '');
 }
 function spe_finish_product_setup($product, $prod_id, $visvar, $initial_value_array, $type) {
@@ -1329,11 +1366,21 @@ function spe_get_product_image_id($product) {
 	$image_id  = $product->get_image_id();
 	return $image_id;
 }
-function spe_display_product_image($prod_id, $image_id) {
+function spe_display_product_image($image_id) {
 	$image_url = wp_get_attachment_image_url( $image_id, 'full' );
 	?>
-	<a href="<?php echo $image_url; ?>" target="_blank"><img src="<?php echo $image_url; ?>" width="200"/></a><br />
-	<div class="spe-var-label image-url">Image Id: <span id="<?= $prod_id ?>-image-id" class="spe-prod-info image-id integer-val" contentEditable="true"><?= $image_id ?></span></div>
+	<a href="<?php echo $image_url; ?>" target="_blank"><img src="<?php echo $image_url; ?>" width="300"/></a><br />
+	<?php
+}
+function spe_display_single_product_info_table($prod_id, $prod_info_rows) {
+	?><br>
+	<div class="spe-single-prod-table"><?php
+  	foreach ($prod_info_rows as $prod_info_row) {
+		?><div class="spe-pt__row no-border">
+			<div class="spe-pt__cell spe-prod-table--info-label var-name"><?= $prod_info_row['name'] ?></div><div id="<?php echo $prod_id , $prod_info_row['idSuffix']; ?>" class="spe-single-pt__cell--val spe-pt__cell <?= $prod_info_row['classes'] ?>" contentEditable="true"><?= $prod_info_row['val'] ?></div>
+		</div><br><?php
+	}
+	?></div><br>
 	<?php
 }
 function spe_get_product_prices($product, $prod_id, $db) {
@@ -1360,13 +1407,6 @@ function spe_display_product_prices($prod_id, $prod_info) {
 	  		<td id="<?=$prod_id;?>-discount-type" class="spe-prod-info price discount-type string-val" contentEditable="true"><?=$prod_info['discountType']?></td>
 	  	</tr>
 	</table>
-	<?php
-}
-function spe_display_product_menu_order($prod_id, $menu_order) {
-	?>
-	<div class="spe-var-label">Menu Order:
-		<span id="<?= $prod_id ?>-menu-order" class="spe-prod-info spe-menu-order integer-val" contentEditable="true"><?= $menu_order ?></span>
-	</div>
 	<?php
 }
 function spe_display_product_stock($product, $prod_id, $stock) {
@@ -1496,7 +1536,7 @@ function spe_get_discount_type_string($prod_id, $db) {
 		return "";
 	}
 }
-function get_product_meta($prod_id, $db, $terms) {
+function get_product_meta($prod_id, $db, $terms, $external = false) {
 	/**
 	*	Returns $result which is an array of commonly used meta values to be used by certain product display functions
 	*	$result = array(
@@ -1506,37 +1546,51 @@ function get_product_meta($prod_id, $db, $terms) {
 	*	);
 	*/
 
-  if (!is_numeric($prod_id)) {
+	if (!is_numeric($prod_id)) {
 		echo '<script>console.error("SPE function get_product_meta() was not passed a product id for its first parameter.");</script>';
 		return false;
 	}
 
-	$result = array(3);
+	$result = array(5);
 
-  // Regular Price
-  $querystr = "SELECT meta_value FROM `" . $db->prefix . "postmeta` WHERE post_id = " . $prod_id . " and meta_key = '_regular_price' LIMIT 1";
+	// Regular Price
+	$querystr = "SELECT meta_value FROM `" . $db->prefix . "postmeta` WHERE post_id = " . $prod_id . " and meta_key = '_regular_price' LIMIT 1";
 	$result[0] = $db->get_results($querystr)[0]->meta_value;
 
-  // EXAMPLE OF RAW
+	// EXAMPLE OF RAW
 	// echo '<br /><pre>' . var_dump($db->get_results($querystr)) . '</pre><br />';
 
 	// Sale Price
-  $querystr = "SELECT meta_value FROM `" . $db->prefix . "postmeta` WHERE post_id = " . $prod_id . " and meta_key = '_sale_price' LIMIT 1";
+	$querystr = "SELECT meta_value FROM `" . $db->prefix . "postmeta` WHERE post_id = " . $prod_id . " and meta_key = '_sale_price' LIMIT 1";
 	$resbuffer = $db->get_results($querystr);
 	if (!empty($resbuffer)) {
 		$result[1] = $resbuffer[0]->meta_value;
 	} else $result[1] = '';
 
-  // Visibility
-  $querystr = "SELECT EXISTS(SELECT 1 FROM `" . $db->prefix . "term_relationships` WHERE object_id = " . $prod_id . " and term_taxonomy_id = " . $terms[0] . " LIMIT 1)";
-  $searchexclude = intval($db->get_var($querystr));
+	// Visibility
+	$querystr = "SELECT EXISTS(SELECT 1 FROM `" . $db->prefix . "term_relationships` WHERE object_id = " . $prod_id . " and term_taxonomy_id = " . $terms[0] . " LIMIT 1)";
+	$searchexclude = intval($db->get_var($querystr));
 
-  $querystr = "SELECT EXISTS(SELECT 1 FROM `" . $db->prefix . "term_relationships` WHERE object_id = " . $prod_id . " and term_taxonomy_id = " . $terms[1] . " LIMIT 1)";
-  $catexclude = intval($db->get_var($querystr));
+	$querystr = "SELECT EXISTS(SELECT 1 FROM `" . $db->prefix . "term_relationships` WHERE object_id = " . $prod_id . " and term_taxonomy_id = " . $terms[1] . " LIMIT 1)";
+	$catexclude = intval($db->get_var($querystr));
 	$catexclude *= 2;
 
 	$result[2] = $searchexclude + $catexclude;
 
+	if ($external) {
+		$querystr = "SELECT meta_value FROM `" . $db->prefix . "postmeta` WHERE post_id = " . $prod_id . " and meta_key = 'super_product_id' LIMIT 1";
+		$resbuffer = $db->get_results($querystr);
+		if (!empty($resbuffer)) {
+			$result[3] = $resbuffer[0]->meta_value;
+		} else $result[3] = '';
+	  
+		$querystr = "SELECT meta_value FROM `" . $db->prefix . "postmeta` WHERE post_id = " . $prod_id . " and meta_key = 'linked_variation_id' LIMIT 1";
+		$resbuffer = $db->get_results($querystr);
+		if (!empty($resbuffer)) {
+			$result[4] = $resbuffer[0]->meta_value;
+		} else $result[4] = '';
+	}
+  
   return $result;
 }
 function get_product_url_or_color($prod_id, $db, $return_full_color_url) {
