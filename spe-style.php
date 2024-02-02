@@ -34,7 +34,7 @@ function spe_load_stylesheet($style_settings_arr) {
 			text-align:center;
 			padding:0.125rem 0.5rem;
 			background-color:#E0E0E0;
-			display:inline-block;
+			display:inline-block;191080
 			border:1px solid white;
 		}
 		.current-page {
@@ -76,8 +76,16 @@ function spe_load_stylesheet($style_settings_arr) {
 			overflow:hidden;
 			vertical-align:top;
 		}
+		.spe-single-pt__cell--val {
+			width:40rem;
+		}
 		.id {
 			width:8rem;
+			white-space:nowrap;
+			padding: 0.125rem 0.75rem 0.125rem 0.25rem;
+		}
+		.var-name {
+			width:7rem;
 			white-space:nowrap;
 			padding: 0.125rem 0.75rem 0.125rem 0.25rem;
 		}
