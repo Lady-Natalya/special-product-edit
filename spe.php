@@ -478,6 +478,7 @@ function special_product_menu_link_callback() {
 						break;
 				  	case 'external':
 						$prod_info = spe_get_basic_product_info($product, $prod_id, $wpdb);
+						$terms = get_product_visibility_terms($wpdb);
 						$meta = get_product_meta($prod_id, $wpdb, $terms, true);
 					
 						spe_display_product_image($prod_info['imageId']);
@@ -493,8 +494,6 @@ function special_product_menu_link_callback() {
 						spe_display_single_product_info_table($prod_id, $prod_info_rows);
 					
 						spe_display_basic_product_info($prod_id, $prod_info);
-					
-						$terms = get_product_visibility_terms($wpdb);
 						$visvar = evaluate_visibility_vars($meta[2]);
 					
 
@@ -584,7 +583,7 @@ function special_product_menu_link_callback() {
         	<?php
         	settings_fields( 'spe_tool_settings' );
         	do_settings_sections( 'spe_tools_script' ); ?>
-        	<input nsettings_fieldsame="submit" class="button button-primary" type="submit" value="<?php esc_attr_e( 'Save' ); ?>" />
+        	<input name="submit" class="button button-primary" type="submit" value="<?php esc_attr_e( 'Save' ); ?>" />
     	</form>
 	</div>
 	<?php
@@ -1325,7 +1324,8 @@ function spe_initial_value_setup_script($type, $initial_value_array, $prod_id) {
 
 function spe_display_product_post_status($prod_id, $status, $display_mode, $visstyle) {
 	
-	if ($display_mode == 1) {echo '<div class="spe-var-label">Product Status:';}
+	if ($display_mode == 1) {echo '<div class="spe-var-label">Product Status:</div>
+	';}
 	?>	<div id="<?= $prod_id; ?>-post-status" class="<?php if ($display_mode == 2) echo 'spe-pt__cell ' . $visstyle . ' '; ?>spe-dropdown-parent spe-dropdown--status edit"><?= $status; ?>
 			<div id="<?= $prod_id; ?>-post-status-dropdown" class="dropdiv-content spe-dropdown--status">
 				<span class="dropdiv-content-option">publish</span><br/>
@@ -1457,7 +1457,7 @@ function spe_display_product_dimensions($prod_id, $p_l, $p_w, $p_h) {
 }
 function spe_display_product_visibility($product, $visvar) {
 	?>
-		<div class="spe-var-label">Visibility:
+		<div class="spe-var-label">Visibility:</div>
 			<div id="<?= $product; ?>-visibility" class="spe-dropdown-parent vis edit"><?= $visvar[2]; ?>
 				<div id="<?= $product; ?>-visibility-dropdown" class="dropdiv-content spe-dropdown--vis">
 					<span class="dropdiv-content-option">Shop and Search</span><br/>
@@ -1493,7 +1493,7 @@ function spe_display_product_categories($product, $prod_id) {
 	  		<?php
 		} else {
 		  	$term = get_term_by( 'id', $cat_ids[0], 'product_cat' );
-			?><div class="product-cat edit">Category: <?= $term->name; ?></div><?php
+			?><div class="product-cat edit spe-var-label">Category: <?= $term->name; ?></div><?php
 		}	
 		
 	} else echo '<div class="product-cat edit">Uncategorized</div>';
@@ -1550,6 +1550,10 @@ function get_product_meta($prod_id, $db, $terms, $external = false) {
 		echo '<script>console.error("SPE function get_product_meta() was not passed a product id for its first parameter.");</script>';
 		return false;
 	}
+	
+  	$result = NULL;
+	$resbuffer = NULL;
+	$querystr = NULL;
 
 	$result = array(5);
 
