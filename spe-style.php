@@ -59,6 +59,7 @@ function spe_load_stylesheet($style_settings_arr) {
 			/* background-color:#FFFFFF; */
 			border-bottom:none;
 			display:inline-block;
+			vertical-align:top;
 		}
 		.spe-pt__cell--id {
 			background-color:#F0F0F0;
@@ -79,6 +80,17 @@ function spe_load_stylesheet($style_settings_arr) {
 		.spe-single-pt__cell--val {
 			width:40rem;
 		}
+		.external-link {
+			word-wrap:break-word;
+			overflow-x:scroll;
+			overflow-y:hidden;
+			scrollbar-width:none;
+			white-space:nowrap;
+			vertical-align:top;
+		}
+		.external-link::-webkit-scrollbar {
+			display:none;
+		}	
 		.id {
 			width:8rem;
 			white-space:nowrap;
@@ -130,7 +142,7 @@ function spe_load_stylesheet($style_settings_arr) {
 		div.attribute {
 			min-width:17rem;
 		}
-		.spe-prod-table div.no-border{
+		.spe-pt__row.no-border{
 			border-bottom:none;
 		}
 		div div.center {
@@ -243,12 +255,15 @@ function spe_load_stylesheet($style_settings_arr) {
 		.dropdiv-content-view-only, .dropdiv-content-view-only--container {
 			background-color:#E8FFF8;
 			z-index:0;
+			max-width:55rem;
 		}
 		.dropdiv-content-view-only.selectable, .dropdiv-content-view-only--container.selectable {
 			background-color:#F0F0F0;
 		}
 	  	.dropdiv-content-view-only.dd-c-vo--copyable {
 			width:unset;
+			overflow:hidden;
+			max-width:50rem;
 	  	}
 		.dd-c-vo--copyable, .dd-c-vo__copy-button {
 			float:left;
@@ -265,6 +280,10 @@ function spe_load_stylesheet($style_settings_arr) {
 			border:1px solid black;
 			border-radius:3px;
 			background-color:white;
+		}
+		.dd-c-vo__copy-button.dd-c-vo__copy-button--disabled {
+			background-color:#E0E0E0;
+			cursor:not-allowed;
 		}
 		.dd-c-vo__close-button {
 			text-align: center;
