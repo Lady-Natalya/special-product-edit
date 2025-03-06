@@ -1,3 +1,4 @@
+// Last Update 2025 March 06
 function spe_load_stylesheet($style_settings_arr) {
 	?>
 	<style>
