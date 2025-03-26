@@ -6,7 +6,7 @@
 // Add Link to Menu
 // ################
 
-// Last save 2025 March 06
+// Last save 2025 March 26
 
 add_action('admin_menu', 'special_product_menu_link');
 
@@ -101,6 +101,7 @@ function special_product_menu_link_callback() {
 									$product->set_stock_quantity($edited_value);
 								}
 								break;
+							case 'categories': wp_set_object_terms($product_id, explode(",",$edited_value), 'product_cat'); break;
 							case 'sku': $product->set_sku($edited_value); break;
 							case 'menuOrder': $product->set_menu_order($edited_value); break;
 							case 'manageStock': $product->set_manage_stock($edited_value); break;
@@ -114,7 +115,7 @@ function special_product_menu_link_callback() {
 							case 'imageId': set_post_thumbnail($product_id, $edited_value); break;
 							case 'length': $product->set_length($edited_value); break;
 							case 'linkedVariationId': $product->update_meta_data('linked_variation_id', $edited_value); $product->save_meta_data(); break;
-							case 'productTags': wp_set_object_terms($product_id, explode(",",$edited_value), 'product_tag');
+							case 'productTags': wp_set_object_terms($product_id, explode(",",$edited_value), 'product_tag'); break;
 							case 'slug': $product->set_slug($edited_value); break;
 							case 'salePrice': $product->set_sale_price($edited_value); break;
 							case 'regularPrice': $product->set_regular_price($edited_value); break;
@@ -149,8 +150,6 @@ function special_product_menu_link_callback() {
 			}
 			echo '</div><br />';
 		}
-  	// unset($value);	// 2023 Sept 10 - Candidate for Deletion
-  	// unset($sub_val); // 2023 Sept 10 - Candidate for Deletion
 	}
 ?>
 	</div><br />
@@ -204,15 +203,15 @@ function special_product_menu_link_callback() {
 			<?php
 			spe_display_save_button();
 			spe_initialize_window_values();
-			?>
-			<div class="spe-pt__cell spe-pt__cell--id">Product ID</div><div class="spe-pt__cell spe-pt__cell--type">Type</div><div class="spe-pt__cell spe-pt__cell--status">Status</div><div class="spe-pt__cell spe-pt__cell--title">post_title</div><?php
-			
-			if (($selected_product_type != 'external') && ($selected_product_type != 'variable')) {
-				echo '<div class="spe-pt__cell center man-stock">Manage Stock?</div><div class="spe-pt__cell center stock">Stock</div>';
-			}
+			display_product_table_header($selected_product_type);
 			?><br /><?php
 			$count = 0;
 			$more_prods = false;
+			
+			if ($type != 'variable') {
+				$terms = get_product_visibility_terms($wpdb);
+			}
+			
 			foreach($returned_product_data as $row) {
 				$count += 1;
 				if ($count > $product_limit) {
@@ -235,6 +234,18 @@ function special_product_menu_link_callback() {
 				echo '</div>';
 				echo '<div class="spe-pt__cell spe-pt__cell--title ',$prod_vis_status,'">', spe_product_link($row->ID, $row->post_title), '</div>';
 
+				$prod_html = '';
+
+				if ($type != 'variable') {
+					$meta = get_product_meta($row->ID, $wpdb, $terms, true);
+					
+					$initial_value_array['regularPrice'] = ($meta[0] ?? '');
+					$initial_value_array['salePrice'] = ($meta[1] ?? '');
+					
+					$prod_html .= '<div id="' . $row->ID . '-reg-price" class="spe-pt__cell center '.$prod_vis_status.' price float-val" contentEditable="true">'.($meta[0] ? $meta[0] : 'N/A').'</div>';
+					$prod_html .= '<div id="' . $row->ID . '-sales-price" class="spe-pt__cell center '.$prod_vis_status.' price sales-price float-val" contentEditable="true">'.($meta[1] ? $meta[1] : '&nbsp;').'</div>';
+				}
+
 				if (($type != 'external') && ($type != 'variable')){
 				  	//echo '[TYPE: ' . $type . ']';
 					$stock = evaluate_stock($row->ID, $wpdb); // $stock[0] is if stock is managed, $stock[1] is stock quantity, $stock[2] is stock status
@@ -243,16 +254,16 @@ function special_product_menu_link_callback() {
 					$initial_value_array['stock'] = ($stock[1] ?? 0);
 					$initial_value_array['stockStatus'] = ($stock[2] ?? 'outofstock');
 				
-					$prod_html = '<div id="'. $row->ID . '-managestock-parentdiv" class="spe-pt__cell spe-dropdown-parent center man-stock">'.(($stock[0] == 1) ? 'yes' : 'no');
+					$prod_html .= '<div id="'. $row->ID . '-managestock-parentdiv" class="spe-pt__cell spe-dropdown-parent center man-stock">'.(($stock[0] == 1) ? 'yes' : 'no');
 					$prod_html .= '<div id="'. $row->ID .'-managestock-dropdown" class="dropdiv-content man-stock center">';
 					$prod_html .= '<span class="dropdiv-content-option">yes</span><br/><span class="dropdiv-content-option">no</span>';
 					$prod_html .= '</div>';
 					$prod_html .= '</div>';
 					$prod_html .= '<div id="'. $row->ID . '-stock" class="spe-pt__cell stock stock-val '.(($stock[0] == 1) ? 'integer-val' : 'string-val').' center bold'.set_bg($stock).'" contentEditable="true">'.(($stock[0] == 1) ? $stock[1] : $stock[2]).'</div>';
-				} else {
+				}/* else {
 					$prod_html = '<div class="spe-pt__cell center man-stock"></div>';
 					$prod_html .= '<div class="spe-pt__cell stock stock-val center bold"></div>';
-				}
+				} */
 				echo $prod_html;
 
 				echo '<br />';
@@ -490,6 +501,7 @@ function special_product_menu_link_callback() {
 						$meta = get_product_meta($prod_id, $wpdb, $terms, true);
 						$slug = $product->get_slug();
 						$prod_tags_str = spe_get_product_tags($prod_id);
+						$categories_str = spe_get_product_categories($prod_id);
 					
 						spe_display_product_image($prod_info['imageId']);
 						
@@ -503,6 +515,7 @@ function special_product_menu_link_callback() {
 						array_push($prod_info_rows, Array('idSuffix' => '-linked-variation-id', 'name' => "Linked Variation ID", 'classes' => "integer-val", 'val'=> $meta[4]));
 						array_push($prod_info_rows, Array('idSuffix' => '-slug', 'name' => "Slug", 'classes' => "string-val", 'val'=> $slug));
 						array_push($prod_info_rows, Array('idSuffix' => '-tags', 'name' => "Product Tags", 'classes' => "string-val", 'val'=> $prod_tags_str));
+						array_push($prod_info_rows, Array('idSuffix' => '-categories', 'name' => "Categories", 'classes' => "string-val", 'val'=> $categories_str));
 						spe_display_single_product_info_table($prod_id, $prod_info_rows);
 					
 						spe_display_basic_product_info($prod_id, $prod_info);
@@ -510,6 +523,7 @@ function special_product_menu_link_callback() {
 					
 
 						$initial_value_array = array(
+							"categories" => ($categories_str ?? ''),
 							"discountType" => ($prod_info['discountType'] ?? ''),
 							"excludeFromSearch" => ($visvar[0] ?? 0),
 							"excludeFromCatalog" => ($visvar[1] ?? 0),
@@ -880,7 +894,9 @@ function generate_product_edit_script() {
 
 					dataKey = '';
 
-					if (e.target.className.includes('stock-val')) {
+					if (e.target.id.includes('categories')) {
+						dataKey = 'categories';
+					} else if (e.target.className.includes('stock-val')) {
 						dataKey = 'stock';
 					} else if (e.target.className.includes('sku')) {
 						dataKey = 'sku';
@@ -1000,6 +1016,7 @@ function generate_product_edit_script() {
 							} else {
 								evaluateModifiedValue(prodId, dataKey, newValue);
 							}
+							console.log('dataKey', dataKey, 'origPrice', origPrice, 'newValue', newValue);
 							break;
 						default:
 							origVal = window.initialValues[prodId][dataKey];
@@ -1205,6 +1222,13 @@ function display_variable_product_table_header() {
 	 ?><div class="spe-pt__row spe-prod-table--info-label"><div class="spe-pt__cell id">ID</div><div class="spe-pt__cell sku">SKU</div><div class="spe-pt__cell center price">Reg Price</div><div class="spe-pt__cell center price">Sale Price</div><div class="spe-pt__cell center man-stock">Manage Stock?</div><div class="spe-pt__cell center stock">Stock</div></div><br /><?php
 	return;
 }
+
+function display_product_table_header($selected_product_type) {
+	?><div class="spe-pt__cell spe-pt__cell--id">Product ID</div><div class="spe-pt__cell spe-pt__cell--type">Type</div><div class="spe-pt__cell spe-pt__cell--status">Status</div><div class="spe-pt__cell spe-pt__cell--title">post_title</div><?php
+	
+	if ($selected_product_type != 'variable') { echo '<div class="spe-pt__cell center price">Reg Price</div><div class="spe-pt__cell center price">Sale Price</div>'; }
+	if (($selected_product_type != 'external') && ($selected_product_type != 'variable')) { echo '<div class="spe-pt__cell center man-stock">Manage Stock?</div><div class="spe-pt__cell center stock">Stock</div>'; }
+}
 function display_external_product_rows($res, $db, $variation_id) {
 	if (!$res) {
 		return;
@@ -1372,12 +1396,25 @@ function spe_get_basic_product_info($product, $prod_id, $db) {
 }
 function spe_get_product_tags ($prod_id) {
 	$prod_tags = (array) wp_get_post_terms($prod_id, 'product_tag', array('fields' => 'names') );
+	$prod_tags_str = "";
 	$ret = "";
 	if (isset($prod_tags)) {
 		foreach ($prod_tags as $prod_tag) {
 			$prod_tags_str .= ($prod_tag . ',');
 		}
 		$ret = substr($prod_tags_str, 0, -1);
+	}
+	return $ret;
+}
+function spe_get_product_categories ($prod_id) {
+	$categories = (array) wp_get_post_terms($prod_id, 'product_cat', array('fields' => 'names') );
+	$cat_str = "";
+	$ret = "";
+	if (isset($categories)) {
+		foreach ($categories as $cat) {
+			$cat_str .= ($cat . ',');
+		}
+		$ret = substr($cat_str, 0, -1);
 	}
 	return $ret;
 }
@@ -1391,7 +1428,7 @@ function spe_finish_product_setup($product, $prod_id, $visvar, $initial_value_ar
 	}
 
 	spe_display_product_visibility($prod_id, $visvar);
-	spe_display_product_categories($product, $prod_id);
+	//spe_display_product_categories($product, $prod_id);
 
 	generate_product_edit_script();
 }
