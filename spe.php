@@ -6,7 +6,7 @@
 // Add Link to Menu
 // ################
 
-// Last save 2025 March 26
+// Last save 2025 April 14
 
 add_action('admin_menu', 'special_product_menu_link');
 
@@ -101,7 +101,9 @@ function special_product_menu_link_callback() {
 									$product->set_stock_quantity($edited_value);
 								}
 								break;
+							case 'brand': update_post_meta($product_id, 'brand', $edited_value); break;
 							case 'categories': wp_set_object_terms($product_id, explode(",",$edited_value), 'product_cat'); break;
+							case 'countryOfManufacture': update_post_meta($product_id, 'countryOfManufacture', $edited_value); break;
 							case 'sku': $product->set_sku($edited_value); break;
 							case 'menuOrder': $product->set_menu_order($edited_value); break;
 							case 'manageStock': $product->set_manage_stock($edited_value); break;
@@ -115,6 +117,7 @@ function special_product_menu_link_callback() {
 							case 'imageId': set_post_thumbnail($product_id, $edited_value); break;
 							case 'length': $product->set_length($edited_value); break;
 							case 'linkedVariationId': $product->update_meta_data('linked_variation_id', $edited_value); $product->save_meta_data(); break;
+							case 'mpn': update_post_meta($product_id, 'mpn', $edited_value); break;
 							case 'productTags': wp_set_object_terms($product_id, explode(",",$edited_value), 'product_tag'); break;
 							case 'slug': $product->set_slug($edited_value); break;
 							case 'salePrice': $product->set_sale_price($edited_value); break;
@@ -523,7 +526,9 @@ function special_product_menu_link_callback() {
 					
 
 						$initial_value_array = array(
+							"brand" => ($prod_info['brand'] ?? ''),
 							"categories" => ($categories_str ?? ''),
+							"countryOfManufacture" => ($prod_info['countryOfManufacture'] ?? ''),
 							"discountType" => ($prod_info['discountType'] ?? ''),
 							"excludeFromSearch" => ($visvar[0] ?? 0),
 							"excludeFromCatalog" => ($visvar[1] ?? 0),
@@ -536,6 +541,7 @@ function special_product_menu_link_callback() {
 							"slug" => ($slug ?? ''),
 							"regularPrice" => ($prod_info['regularPrice'] ?? ''),
 							"salePrice" => ($prod_info['salePrice'] ?? ''),
+							"sku" => (($product->get_sku()) ?? ''),
 							"status" => ($prod_status ?? ''),
 							"superProductId" => ($meta[3] ?? '')
 						);
@@ -548,7 +554,8 @@ function special_product_menu_link_callback() {
 						
 						$prod_info_rows = Array(
 							Array('idSuffix' => '-image-id', 'name' => "Image ID", 'classes' => "image-id integer-val", 'val'=> spe_get_product_image_id($product)),
-							Array('idSuffix' => '-menu-order', 'name' => "Menu Order", 'classes' => "spe-menu-order integer-val", 'val'=> $prod_info['menuOrder'])
+							Array('idSuffix' => '-menu-order', 'name' => "Menu Order", 'classes' => "spe-menu-order integer-val", 'val'=> $prod_info['menuOrder']),
+							Array('idSuffix' => '-permalink', 'name' => "Permalink", 'classes' => "spe-menu-order string-val", 'val'=> get_permalink($prod_id), 'notEditable' => true)
 						);
 						spe_display_single_product_info_table($prod_id, $prod_info_rows);
 					
@@ -568,8 +575,11 @@ function special_product_menu_link_callback() {
 						$height = empty($product->get_height()) ? 0 : $product->get_height();
 						spe_display_product_weight($prod_id, $weight);
 						spe_display_product_dimensions($prod_id, $length, $width, $height);
+						spe_display_product_production_info($product, $prod_id, $prod_info);
 
 						$initial_value_array = array(
+							"brand" => ($prod_info['brand'] ?? ''),
+						  	"countryOfManufacture" => ($prod_info['countryOfManufacture'] ?? ''),
 							"discountType" => ($prod_info['discountType'] ?? ''),
 							"excludeFromCatalog" => ($visvar[1] ?? 0),
 							"excludeFromSearch" => ($visvar[0] ?? 0),
@@ -578,6 +588,7 @@ function special_product_menu_link_callback() {
 							"length" => ($length ?? 0),
 							"manageStock" => ($stock[0] ?? 'no'),
 							"menuOrder" => ($prod_info['menuOrder'] ?? 0),
+							"mpn" => ($prod_info['mpn'] ?? ''),
 							"name" => ($product_name ?? ''),
 							"regularPrice" => ($prod_info['regularPrice'] ?? ''),
 							"salePrice" => ($prod_info['salePrice'] ?? ''),
@@ -894,11 +905,15 @@ function generate_product_edit_script() {
 
 					dataKey = '';
 
-					if (e.target.id.includes('categories')) {
+					if (e.target.id.includes('-brand')) {
+						dataKey = 'brand';
+					} else if (e.target.id.includes('categories')) {
 						dataKey = 'categories';
+					} else if (e.target.id.includes('-country')) {
+						dataKey = 'countryOfManufacture';
 					} else if (e.target.className.includes('stock-val')) {
 						dataKey = 'stock';
-					} else if (e.target.className.includes('sku')) {
+					} else if (e.target.id.includes('sku')) {
 						dataKey = 'sku';
 					} else if (e.target.className.includes('discount-type')) {
 						dataKey = 'discountType';
@@ -910,6 +925,8 @@ function generate_product_edit_script() {
 						dataKey = 'linkedVariationId';
 					} else if (e.target.className.includes('menu-order')) {
 						dataKey = 'menuOrder';
+					} else if (e.target.id.includes('mpn')) {
+						dataKey = 'mpn';
 					} else if (e.target.className.includes('name')) {
 						dataKey = 'name';
 					} else if (e.target.id.includes('tags')) {
@@ -1386,9 +1403,12 @@ function spe_display_product_post_status($prod_id, $status, $display_mode, $viss
 function spe_get_basic_product_info($product, $prod_id, $db) {
 	$prices = spe_get_product_prices($product, $prod_id, $db);
 	return array(
+		'brand' => $product->get_meta('brand'),
+		'countryOfManufacture' => $product->get_meta('countryOfManufacture'),
 		'discountType' => $prices[2],
 		'imageId' => spe_get_product_image_id($product),
 		'menuOrder' => $product->get_menu_order(),
+		'mpn' => $product->get_meta('mpn'),
 		'regularPrice' => $prices[0],
 		'salePrice' => $prices[1],
 	  	'status' => $product->get_status()
@@ -1447,7 +1467,7 @@ function spe_display_single_product_info_table($prod_id, $prod_info_rows) {
 	<div class="spe-single-prod-table"><?php
   	foreach ($prod_info_rows as $prod_info_row) {
 		?><div class="spe-pt__row<?php if ($prod_info_row === end($prod_info_rows)) {echo " no-border";} ?>">
-			<div class="spe-pt__cell spe-prod-table--info-label var-name"><?= $prod_info_row['name'] ?></div><div id="<?php echo $prod_id , $prod_info_row['idSuffix']; ?>" class="spe-single-pt__cell--val spe-pt__cell <?= $prod_info_row['classes'] ?>" contentEditable="true"><?= $prod_info_row['val'] ?></div>
+			<div class="spe-pt__cell spe-prod-table--info-label var-name"><?= $prod_info_row['name'] ?></div><div id="<?php echo $prod_id , $prod_info_row['idSuffix']; ?>" class="spe-single-pt__cell--val spe-pt__cell <?= $prod_info_row['classes'] ?> <?php if ($prod_info_row['notEditable']) echo ' inactive"'; else echo '" contentEditable="true"'; ?>><?= $prod_info_row['val'] ?></div>
 		</div><br><?php
 	}
 	?><br>
@@ -1523,6 +1543,29 @@ function spe_display_product_dimensions($prod_id, $p_l, $p_w, $p_h) {
 		Width <span id="<?= $prod_id; ?>-width" class="spe-prod-info float-val" contentEditable="true"><?= $p_w ?></span>
 		Height <span id="<?= $prod_id; ?>-height" class="spe-prod-info float-val" contentEditable="true"><?= $p_h ?></span>
 	</div>
+	<?php
+}
+function spe_display_product_production_info($product, $prod_id, $prod_info) {
+  	?>
+	<div id="<?= $prod_id; ?>-cat-display" class="spe-var-label">Production Info:</div>
+	<table class="spe-var-list-container">
+		<tr>
+			<td>Brand:</td>
+	  		<td id="<?=$prod_id;?>-brand" class="spe-prod-info string-val" contentEditable="true"><?php echo ($prod_info['brand'] ?? '&nbsp;&nbsp;'); ?></td>
+	  	</tr>
+		<tr>
+			<td>Country Code:</td>
+	  		<td id="<?=$prod_id;?>-country" class="spe-prod-info string-val" contentEditable="true"><?php echo ($prod_info['countryOfManufacture'] ?? '&nbsp;&nbsp;'); ?></td>
+	  	</tr>
+		<tr>
+			<td>SKU:</td>
+	  		<td id="<?=$prod_id;?>-sku" class="spe-prod-info string-val" contentEditable="true"><?php echo (($product->get_sku()) ?? '&nbsp;&nbsp;'); ?></td>
+	  	</tr>
+		<tr>
+			<td>MPN:</td>
+	  		<td id="<?=$prod_id;?>-mpn" class="spe-prod-info string-val" contentEditable="true"><?php echo ($product->get_meta('mpn') ?? '&nbsp;&nbsp;'); ?></td>
+	  	</tr>
+	</table>
 	<?php
 }
 function spe_display_product_visibility($product, $visvar) {
@@ -1685,5 +1728,5 @@ function get_variation_additional_images_formatted_url_list($variation_id, $db) 
 			$ret .= ',';
 		}
 	}
-  	return substr($ret, 0, -1);;
+  	return substr($ret, 0, -1);
 }
